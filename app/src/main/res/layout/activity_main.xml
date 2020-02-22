@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    tools:context=".MainActivity">
+
+    <TextView
+        android:id="@+id/api_status_text_start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="API will"
+        app:layout_constraintBottom_toBottomOf="@id/api_status_success"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/api_status_success" />
+
+    <Spinner
+        android:id="@+id/api_status_success"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toEndOf="@id/api_status_text_start"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/api_status_text_middle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="in"
+        app:layout_constraintBottom_toBottomOf="@id/api_status_success"
+        app:layout_constraintStart_toEndOf="@id/api_status_success"
+        app:layout_constraintTop_toTopOf="@id/api_status_success" />
+
+    <EditText
+        android:id="@+id/api_status_delay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="number"
+        android:minWidth="80dp"
+        app:layout_constraintBottom_toBottomOf="@id/api_status_success"
+        app:layout_constraintStart_toEndOf="@id/api_status_text_middle"
+        app:layout_constraintTop_toTopOf="@id/api_status_success" />
+
+    <TextView
+        android:id="@+id/api_status_text_end"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ms"
+        app:layout_constraintBottom_toBottomOf="@id/api_status_success"
+        app:layout_constraintStart_toEndOf="@id/api_status_delay"
+        app:layout_constraintTop_toTopOf="@id/api_status_success" />
+
+    <ProgressBar
+        android:id="@+id/progress_api"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        app:layout_constraintBottom_toBottomOf="@id/api_status_success"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/api_status_success" />
+
+    <TextView
+        android:id="@+id/status_ram"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="RAM contents: "
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/api_status_success" />
+
+    <ProgressBar
+        android:id="@+id/progress_ram"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        app:layout_constraintBottom_toBottomOf="@id/status_ram"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/status_ram" />
+
+    <TextView
+        android:id="@+id/status_disk"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="DISK contents: "
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/status_ram" />
+
+    <ProgressBar
+        android:id="@+id/progress_disk"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        app:layout_constraintBottom_toBottomOf="@id/status_disk"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/status_disk" />
+
+    <TextView
+        android:id="@+id/status_now"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="NOW: "
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/status_disk" />
+
+
+    <ProgressBar
+        android:id="@+id/progress_data"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="@id/button_get_data"
+        app:layout_constraintStart_toEndOf="@id/button_get_data"
+        app:layout_constraintTop_toTopOf="@id/button_get_data" />
+
+    <Button
+        android:id="@+id/button_get_data"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Get data"
+        app:layout_constraintBottom_toTopOf="@+id/main_status"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/status_now" />
+
+    <TextView
+        android:id="@+id/main_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="No data yet"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/button_get_data" />
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>
