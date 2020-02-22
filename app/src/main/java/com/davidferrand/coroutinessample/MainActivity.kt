@@ -59,18 +59,32 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
     private val agent by lazy { Agent(ram, disk, api) }
 
+    private var runningGetDataJob: Job? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.activity_main)
 
         button_get_data.setOnClickListener {
-            log("Click")
+            // If there is a running getData() job, a click just cancels it
+            runningGetDataJob?.let {
+                log("Click to cancel")
+                cancel()
+                return@setOnClickListener
+            }
+
+            log("Click to get data")
             val startMs = System.currentTimeMillis()
 
             try {
-                launch {
+                runningGetDataJob = launch {
                     progress_data.visibility = View.VISIBLE
+                    button_get_data.text = "Cancel"
+
+                    // TODO button to cancel load
+                    //  --> expectation it cancels the load to display but not the underlying network call (never the underlying network call!)
+
                     try {
                         val result = log("agent.getData()") { agent.getData() }
                         val duration = System.currentTimeMillis() - startMs
@@ -82,11 +96,22 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                         } else {
                             "Tried but got NO data after ${duration}ms"
                         }.also { log(it) }
+
                     } catch (t: Throwable) {
-                        log("thrown by agent.getData{}")
+                        main_status.text =
+                            "${Date().formatAsTime()}: Error trying to get data: $t".also {
+                                log(
+                                    it,
+                                    t
+                                )
+                            }
+
                         throw t
+
                     } finally {
+                        runningGetDataJob = null
                         progress_data.visibility = View.INVISIBLE
+                        button_get_data.text = "Get data"
                     }
                 }
             } catch (t: Throwable) {

@@ -34,6 +34,9 @@ class Api(val statusLogger: StatusLogger) : DescribableResource {
         //  https://medium.com/@appmattus/caching-made-simple-on-android-d6e024e3726b
         //  ConcurrencyHelpers.kt
 
+        // TODO but also represent that there might be calls with various urls/bodies.
+        //   we want to share the exact ones, or do we...?
+
         return withContext(Dispatchers.IO) {
             // TODO apparently no need to use withContext() when using Retrofit
 
