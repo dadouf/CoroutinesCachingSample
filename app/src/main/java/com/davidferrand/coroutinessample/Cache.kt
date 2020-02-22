@@ -12,47 +12,37 @@ abstract class Cache(
     protected var activeJobCount by Delegates.observable(0) { _, _, _ -> describeStatus() }
         private set
 
-    suspend fun read(): Data? = log("long $tag.read() operation") {
+    suspend fun read(): Data? = logAndTrack("$tag.read() operation") { actuallyRead() }
+    suspend fun write(data: Data) = logAndTrack("$tag.write() operation") { actuallyWrite(data) }
+    suspend fun clear() = logAndTrack("$tag.clear() operation") { actuallyClear() }
+
+    abstract suspend fun actuallyRead(): Data?
+    abstract suspend fun actuallyWrite(data: Data)
+    abstract suspend fun actuallyClear()
+
+    private suspend fun <T> logAndTrack(log: String, operation: suspend () -> T) = log(log) {
         activeJobCount++
         try {
-            actuallyReadData()
+            operation()
         } finally {
             activeJobCount--
         }
     }
-
-    suspend fun write(data: Data) = log("long $tag.write() operation") {
-        activeJobCount++
-        try {
-            actuallyWriteData(data)
-        } finally {
-            activeJobCount--
-        }
-    }
-
-
-    // We add some artificial delays to read and write, once these are expired,
-    // we want to actually read/write
-
-    abstract suspend fun actuallyReadData(): Data?
-    abstract suspend fun actuallyWriteData(data: Data)
-    abstract suspend fun clear()
 }
 
 class RamCache(val statusLogger: StatusLogger) : Cache("ramCache") {
     private var cachedData: Data? = null
 
-    override suspend fun actuallyReadData(): Data? {
+    override suspend fun actuallyRead(): Data? {
         return cachedData
     }
 
-    override suspend fun actuallyWriteData(data: Data) {
+    override suspend fun actuallyWrite(data: Data) {
         cachedData = data
     }
 
-    override suspend fun clear() {
+    override suspend fun actuallyClear() {
         cachedData = null
-        describeStatus()
     }
 
     override suspend fun initStatus() = describeStatus()
@@ -75,17 +65,16 @@ class DiskCache(
     /** Keep a lightweight description of the cache contents */
     private var latestDataDescription: String? = null
 
-    override suspend fun actuallyReadData(): Data? {
+    override suspend fun actuallyRead(): Data? {
         return dao.get(readDelayMs).also { latestDataDescription = it.toString() }
     }
 
-    override suspend fun actuallyWriteData(data: Data) {
+    override suspend fun actuallyWrite(data: Data) {
         dao.set(data, writeDelayMs).also { latestDataDescription = data.toString() }
     }
 
-    override suspend fun clear() {
+    override suspend fun actuallyClear() {
         dao.clear(writeDelayMs).also { latestDataDescription = null }
-        describeStatus()
     }
 
     override suspend fun initStatus() {
