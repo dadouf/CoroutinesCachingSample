@@ -26,7 +26,6 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
     private val dao by lazy { AppDatabase.getInstance(this).dataDao() }
     private val statusLogger by lazy {
         StatusLogger { status ->
-            // TODO what should be the pattern here??? rely on LiveData maybe... yea definitely
             launch {
                 when (status) {
                     is StatusLogger.Status.ApiStatus -> {
@@ -69,22 +68,30 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             log("Click")
             val startMs = System.currentTimeMillis()
 
-            launch {
-                progress_data.visibility = View.VISIBLE
-                try {
-                    val result = log("agent.getData()") { agent.getData() }
-                    val duration = System.currentTimeMillis() - startMs
+            try {
+                launch {
+                    progress_data.visibility = View.VISIBLE
+                    try {
+                        val result = log("agent.getData()") { agent.getData() }
+                        val duration = System.currentTimeMillis() - startMs
 
-                    main_status.text = if (result != null) {
-                        val (data, source) = result
-                        "Got data from $source after ${duration}ms: $data"
+                        main_status.text = if (result != null) {
+                            val (data, source) = result
+                            "Got data from $source after ${duration}ms: $data"
 
-                    } else {
-                        "Tried but got NO data after ${duration}ms"
-                    }.also { log(it) }
-                } finally {
-                    progress_data.visibility = View.INVISIBLE
+                        } else {
+                            "Tried but got NO data after ${duration}ms"
+                        }.also { log(it) }
+                    } catch (t: Throwable) {
+                        log("thrown by agent.getData{}")
+                        throw t
+                    } finally {
+                        progress_data.visibility = View.INVISIBLE
+                    }
                 }
+            } catch (t: Throwable) {
+                log("thrown by launch{}")
+                throw t
             }
         }
 
@@ -116,6 +123,12 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
             }
         })
+
+        button_clear_disk.setOnClickListener {
+            launch {
+                disk.clear()
+            }
+        }
     }
 
     override fun onStart() {
@@ -129,9 +142,9 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             }
         }
 
-        ram.describeStatus()
-        api.describeStatus()
-        disk.describeStatus()
+        launch { ram.initStatus() }
+        launch { api.initStatus() }
+        launch { disk.initStatus() }
     }
 
     override fun onStop() {

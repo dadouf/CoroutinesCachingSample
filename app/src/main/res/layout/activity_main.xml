@@ -78,12 +78,23 @@
 
     <TextView
         android:id="@+id/status_disk"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="DISK contents: "
+        app:layout_constraintEnd_toStartOf="@id/button_clear_disk"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/status_ram" />
+
+    <Button
+        android:id="@+id/button_clear_disk"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Clear"
+        app:layout_constraintBottom_toBottomOf="@id/status_disk"
+        app:layout_constraintEnd_toStartOf="@id/progress_disk"
+        app:layout_constraintStart_toEndOf="@id/status_disk"
+        app:layout_constraintTop_toTopOf="@id/status_disk" />
 
     <ProgressBar
         android:id="@+id/progress_disk"
@@ -121,7 +132,8 @@
         app:layout_constraintBottom_toTopOf="@+id/main_status"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@id/status_now" />
+        app:layout_constraintTop_toTopOf="@id/status_now"
+        app:layout_constraintVertical_chainStyle="packed" />
 
     <TextView
         android:id="@+id/main_status"

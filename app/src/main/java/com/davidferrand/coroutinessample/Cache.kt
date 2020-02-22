@@ -2,52 +2,44 @@ package com.davidferrand.coroutinessample
 
 import android.content.Context
 import androidx.room.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import kotlin.properties.Delegates
 
 abstract class Cache(
-    private val tag: String,
-    val readDelayMs: Long,
-    val writeDelayMs: Long
+    private val tag: String
 ) : DescribableResource {
 
     protected var activeJobCount by Delegates.observable(0) { _, _, _ -> describeStatus() }
         private set
 
-    suspend fun read() = withContext(Dispatchers.IO) {
-        log("long $tag.read() operation") {
-            activeJobCount++
-            try {
-                Thread.sleep(readDelayMs)
-                actuallyReadData()
-            } finally {
-                activeJobCount--
-            }
+    suspend fun read(): Data? = log("long $tag.read() operation") {
+        activeJobCount++
+        try {
+            actuallyReadData()
+        } finally {
+            activeJobCount--
         }
     }
 
-    suspend fun write(data: Data) = withContext(Dispatchers.IO) {
-        log("long $tag.write() operation") {
-            activeJobCount++
-            try {
-                Thread.sleep(writeDelayMs)
-                actuallyWriteData(data)
-            } finally {
-                activeJobCount--
-            }
+    suspend fun write(data: Data) = log("long $tag.write() operation") {
+        activeJobCount++
+        try {
+            actuallyWriteData(data)
+        } finally {
+            activeJobCount--
         }
     }
+
 
     // We add some artificial delays to read and write, once these are expired,
     // we want to actually read/write
 
     abstract suspend fun actuallyReadData(): Data?
     abstract suspend fun actuallyWriteData(data: Data)
+    abstract suspend fun clear()
 }
 
-class RamCache(val statusLogger: StatusLogger) :
-    Cache("ramCache", readDelayMs = 10, writeDelayMs = 20) {
+class RamCache(val statusLogger: StatusLogger) : Cache("ramCache") {
     private var cachedData: Data? = null
 
     override suspend fun actuallyReadData(): Data? {
@@ -58,11 +50,17 @@ class RamCache(val statusLogger: StatusLogger) :
         cachedData = data
     }
 
+    override suspend fun clear() {
+        cachedData = null
+        describeStatus()
+    }
+
+    override suspend fun initStatus() = describeStatus()
     override fun describeStatus() {
         statusLogger.log(
             StatusLogger.Status.RamStatus(
                 isActive = activeJobCount > 0,
-                description = "RAM contents: ${cachedData.toString()}"
+                description = cachedData.toString()
             )
         )
     }
@@ -70,17 +68,29 @@ class RamCache(val statusLogger: StatusLogger) :
 
 class DiskCache(
     val dao: DataDao,
-    val statusLogger: StatusLogger
-) : Cache("diskCache", readDelayMs = 500, writeDelayMs = 2000) {
+    val statusLogger: StatusLogger,
+    val readDelayMs: Long = 500,
+    val writeDelayMs: Long = 2000
+) : Cache("diskCache") {
     /** Keep a lightweight description of the cache contents */
     private var latestDataDescription: String? = null
 
     override suspend fun actuallyReadData(): Data? {
-        return dao.get().also { latestDataDescription = it.toString() }
+        return dao.get(readDelayMs).also { latestDataDescription = it.toString() }
     }
 
     override suspend fun actuallyWriteData(data: Data) {
-        dao.set(data).also { latestDataDescription = data.toString() }
+        dao.set(data, writeDelayMs).also { latestDataDescription = data.toString() }
+    }
+
+    override suspend fun clear() {
+        dao.clear(writeDelayMs).also { latestDataDescription = null }
+        describeStatus()
+    }
+
+    override suspend fun initStatus() {
+        read()
+        describeStatus()
     }
 
     override fun describeStatus() {
@@ -113,18 +123,31 @@ abstract class AppDatabase : RoomDatabase() {
 
 @Dao
 abstract class DataDao {
-    @Insert
-    protected abstract fun insert(data: Data)
-
-    @Query("DELETE FROM data")
-    abstract fun clear()
 
     @Query("SELECT * FROM data")
-    abstract fun get(): Data?
+    protected abstract suspend fun getInternal(): Data?
+
+    @Insert
+    protected abstract suspend fun insertInternal(data: Data)
+
+    @Query("DELETE FROM data")
+    protected abstract suspend fun clearInternal()
 
     @Transaction
-    open fun set(data: Data) {
-        clear()
-        insert(data)
+    open suspend fun get(readDelayMs: Long): Data? {
+        delay(readDelayMs)
+        return getInternal()
+    }
+
+    @Transaction
+    open suspend fun set(data: Data, writeDelayMs: Long) {
+        clear(writeDelayMs)
+        insertInternal(data)
+    }
+
+    @Transaction
+    open suspend fun clear(writeDelayMs: Long) {
+        delay(writeDelayMs)
+        clearInternal()
     }
 }

@@ -40,7 +40,7 @@ class Agent(
                 sideEffectsScope.launch { disk.write(networkDataForCaching) }
             }
 
-            delay(5_000)
+            delay(5_000) // FIXME this should be a max delay!!!
             fetchJob.getCompleted() to "API"
 
             // FIXME network error with delay set to 3_000 crashes the app!

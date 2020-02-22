@@ -26,6 +26,7 @@ suspend fun <T> log(s: String, block: suspend () -> T): T {
 }
 
 interface DescribableResource {
+    suspend fun initStatus()
     fun describeStatus()
 }
 

@@ -6,9 +6,6 @@ import java.io.IOException
 import kotlin.properties.Delegates
 
 class Api(val statusLogger: StatusLogger) : DescribableResource {
-    // TODO reuse inflight
-    //  https://medium.com/@appmattus/caching-made-simple-on-android-d6e024e3726b
-    //  ConcurrencyHelpers.kt
 
     private var latestId = 0
 
@@ -17,6 +14,7 @@ class Api(val statusLogger: StatusLogger) : DescribableResource {
 
     private var activeJobCount by Delegates.observable(0) { _, _, _ -> describeStatus() }
 
+    override suspend fun initStatus() = describeStatus()
     override fun describeStatus() {
         statusLogger.log(
             StatusLogger.Status.ApiStatus(
@@ -32,7 +30,9 @@ class Api(val statusLogger: StatusLogger) : DescribableResource {
     }
 
     suspend fun fetch(): Data {
-        // TODO share resources (network call)
+        // TODO reuse inflight
+        //  https://medium.com/@appmattus/caching-made-simple-on-android-d6e024e3726b
+        //  ConcurrencyHelpers.kt
 
         return withContext(Dispatchers.IO) {
             // TODO apparently no need to use withContext() when using Retrofit
