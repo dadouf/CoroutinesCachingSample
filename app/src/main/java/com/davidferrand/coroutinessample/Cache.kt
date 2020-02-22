@@ -9,6 +9,8 @@ abstract class Cache(
     private val tag: String
 ) : DescribableResource {
 
+    // TODO check behavior when caches throw error (for whatever reason)
+
     protected var activeJobCount by Delegates.observable(0) { _, _, _ -> describeStatus() }
         private set
 

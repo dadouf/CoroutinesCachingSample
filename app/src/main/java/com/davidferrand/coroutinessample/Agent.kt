@@ -9,13 +9,14 @@ class Agent(
 ) {
     // These two scopes are introduced for operation that should NOT be cancelled
     // by the user leaving the screen/app
-    private val apiReadScope = CoroutineScope(Dispatchers.Default)
+    private val apiReadScope = CoroutineScope(Dispatchers.Default) // TODO maybe I need exception handlers
     private val cachesWriteScope = CoroutineScope(Dispatchers.Default)
 
     /**
      * @return the best available data and its source
      */
-    suspend fun getData(): Pair<Data, String>? = coroutineScope { // TODO <-- do i need the coroutineScope? why?
+    suspend fun getData(): Pair<Data, String>? = coroutineScope {
+        // TODO <-- do i need the coroutineScope? why?
         val ramData = ram.read()
 
         if (ramData != null && ramData.isFresh()) {
@@ -39,17 +40,25 @@ class Agent(
             }
 
             cachesWriteScope.launch {
-                val networkDataForCaching = fetchJob.await()
-                launch { ram.write(networkDataForCaching) }
-                launch { disk.write(networkDataForCaching) }
+                try {
+                    val networkDataForCaching = fetchJob.await()
+                    launch { ram.write(networkDataForCaching) }
+                    launch { disk.write(networkDataForCaching) }
+                } catch (t: Throwable) {
+                    log("Error with fetchJob - side effect", t)
+
+                    // Catch exception otherwise the app crashes (unhandled)
+//                    throw t
+                }
             }
 
             return@coroutineScope withTimeout(5_000) { fetchJob.await() } to "API"
 
             // FIXME network error with delay set to 3_000 crashes the app!
+            // FIXME appears fixed - but can't recover after a network error
 
         } catch (t: Throwable) {
-            log("Got an error", t)
+            log("Error with fetchJob - main branch", t)
 
             // Fallback to RAM or DISK if possible
             return@coroutineScope ramData?.let { it to "RAM" }

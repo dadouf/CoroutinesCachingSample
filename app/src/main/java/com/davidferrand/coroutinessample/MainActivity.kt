@@ -70,7 +70,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             // If there is a running getData() job, a click just cancels it
             runningGetDataJob?.let {
                 log("Click to cancel")
-                cancel()
+                it.cancel()
                 return@setOnClickListener
             }
 
