@@ -4,20 +4,15 @@ import android.content.Context
 import androidx.room.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.properties.Delegates
 
 abstract class Cache(
     private val tag: String,
     val readDelayMs: Long,
     val writeDelayMs: Long
-//    onDataChangedObserver: (property: KProperty<*>, oldValue: Data?, newValue: Data?) -> Unit,
-//    onActiveJobCountChangedObserver: (property: KProperty<*>, oldValue: Int, newValue: Int) -> Unit
-) {
+) : DescribableResource {
 
-    var activeJobCount: Int = 0
-        /*by Delegates.observable(
-                0,
-                onActiveJobCountChangedObserver
-            )*/
+    protected var activeJobCount by Delegates.observable(0) { _, _, _ -> describeStatus() }
         private set
 
     suspend fun read() = withContext(Dispatchers.IO) {
@@ -47,29 +42,54 @@ abstract class Cache(
     // We add some artificial delays to read and write, once these are expired,
     // we want to actually read/write
 
-    abstract fun actuallyReadData(): Data?
-    abstract fun actuallyWriteData(data: Data)
+    abstract suspend fun actuallyReadData(): Data?
+    abstract suspend fun actuallyWriteData(data: Data)
 }
 
-class RamCache : Cache("ramCache", readDelayMs = 10, writeDelayMs = 20) {
+class RamCache(val statusLogger: StatusLogger) :
+    Cache("ramCache", readDelayMs = 10, writeDelayMs = 20) {
     private var cachedData: Data? = null
 
-    override fun actuallyReadData(): Data? {
+    override suspend fun actuallyReadData(): Data? {
         return cachedData
     }
 
-    override fun actuallyWriteData(data: Data) {
+    override suspend fun actuallyWriteData(data: Data) {
         cachedData = data
+    }
+
+    override fun describeStatus() {
+        statusLogger.log(
+            StatusLogger.Status.RamStatus(
+                isActive = activeJobCount > 0,
+                description = "RAM contents: ${cachedData.toString()}"
+            )
+        )
     }
 }
 
-class DiskCache(val dao: DataDao) : Cache("diskCache", readDelayMs = 500, writeDelayMs = 2000) {
-    override fun actuallyReadData(): Data? {
-        return dao.get()
+class DiskCache(
+    val dao: DataDao,
+    val statusLogger: StatusLogger
+) : Cache("diskCache", readDelayMs = 500, writeDelayMs = 2000) {
+    /** Keep a lightweight description of the cache contents */
+    private var latestDataDescription: String? = null
+
+    override suspend fun actuallyReadData(): Data? {
+        return dao.get().also { latestDataDescription = it.toString() }
     }
 
-    override fun actuallyWriteData(data: Data) {
-        dao.set(data)
+    override suspend fun actuallyWriteData(data: Data) {
+        dao.set(data).also { latestDataDescription = data.toString() }
+    }
+
+    override fun describeStatus() {
+        statusLogger.log(
+            StatusLogger.Status.DiskStatus(
+                isActive = activeJobCount > 0,
+                description = latestDataDescription
+            )
+        )
     }
 }
 
@@ -82,9 +102,7 @@ abstract class AppDatabase : RoomDatabase() {
         private var INSTANCE: AppDatabase? = null
 
         fun getInstance(context: Context): AppDatabase = INSTANCE
-            ?: synchronized(this) {
-                INSTANCE ?: buildDatabase(context).also { INSTANCE = it }
-            }
+            ?: synchronized(this) { INSTANCE ?: buildDatabase(context).also { INSTANCE = it } }
 
         private fun buildDatabase(context: Context) = Room
             .databaseBuilder(context.applicationContext, AppDatabase::class.java, "App.db")

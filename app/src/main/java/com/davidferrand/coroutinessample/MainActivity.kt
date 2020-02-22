@@ -12,31 +12,51 @@ import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.*
 import java.util.*
 
+/**
+ * Resources used to achieve this:
+ * - https://medium.com/androiddevelopers/coroutines-on-android-part-i-getting-the-background-3e0e54d20bb
+ * -
+ */
 @SuppressLint("SetTextI18n")
 class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
-    // TODO use the correct coroutineContext at top level
-    // TODO share resources (network call)
-    // TODO use a real disk cache
     // TODO timeout
-    // TODO introduce Retrofit and room
-
-    private val ram: Cache by lazy { RamCache() }
-//        onDataChangedObserver = { _, _, newValue -> launch { updateRamStatus(newValue) } },
-//        onActiveJobCountChangedObserver = { _, _, newValue -> launch { updateRamActivity(newValue > 0) } })
-
+    // TODO introduce Retrofit
+    // TODO fix error with network timeout
 
     private val dao by lazy { AppDatabase.getInstance(this).dataDao() }
-    private val disk: Cache by lazy { DiskCache(dao) }
-//        onDataChangedObserver = { _, _, newValue -> launch { updateDiskStatus(newValue) } },
-//        onActiveJobCountChangedObserver = { _, _, newValue -> launch { updateDiskActivity(newValue > 0) } })
-
-    private val api by lazy {
-        Api(
-            onActiveJobCountChangedObserver = { _, _, newValue ->
-                launch { updateNetworkActivity(newValue > 0) }
+    private val statusLogger by lazy {
+        StatusLogger { status ->
+            // TODO what should be the pattern here??? rely on LiveData maybe... yea definitely
+            launch {
+                when (status) {
+                    is StatusLogger.Status.ApiStatus -> {
+                        progress_api.visibility =
+                            if (status.isActive) View.VISIBLE else View.INVISIBLE
+                        api_status_success.setSelection(
+                            Api.ProgrammableResponse.values().indexOf(
+                                status.nextResponse
+                            )
+                        )
+                        api_status_delay.setText(status.nextResponseDelay.toString())
+                    }
+                    is StatusLogger.Status.RamStatus -> {
+                        status_ram.text = "RAM contents: ${status.description}"
+                        progress_ram.visibility =
+                            if (status.isActive) View.VISIBLE else View.INVISIBLE
+                    }
+                    is StatusLogger.Status.DiskStatus -> {
+                        status_disk.text = "DISK contents: ${status.description}"
+                        progress_disk.visibility =
+                            if (status.isActive) View.VISIBLE else View.INVISIBLE
+                    }
+                }
             }
-        )
+        }
     }
+
+    private val ram: Cache by lazy { RamCache(statusLogger) }
+    private val disk: Cache by lazy { DiskCache(dao, statusLogger) }
+    private val api by lazy { Api(statusLogger) }
 
     private val agent by lazy { Agent(ram, disk, api) }
 
@@ -96,11 +116,6 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
             }
         })
-
-        // Init status
-        api_status_success.setSelection(Api.ProgrammableResponse.values().indexOf(api.nextResponse))
-        api_status_delay.setText(api.nextResponseDelay.toString())
-
     }
 
     override fun onStart() {
@@ -114,12 +129,9 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             }
         }
 
-        launch { updateRamStatus(ram.read()) }
-        launch { updateDiskStatus(disk.read()) }
-
-        launch { updateRamActivity(ram.activeJobCount > 0) }
-        launch { updateDiskActivity(disk.activeJobCount > 0) }
-        launch { updateNetworkActivity(api.activeJobCount > 0) }
+        ram.describeStatus()
+        api.describeStatus()
+        disk.describeStatus()
     }
 
     override fun onStop() {
@@ -127,24 +139,9 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         super.onStop()
     }
 
-    private fun updateRamStatus(newValue: Data?) {
-        status_ram.text = "RAM contents: $newValue".also { log(it) }
-    }
-
-    private fun updateDiskStatus(newValue: Data?) {
-        status_disk.text = "DISK contents: $newValue".also { log(it) }
-    }
-
-    private fun updateRamActivity(isActive: Boolean) {
-        progress_ram.visibility = if (isActive) View.VISIBLE else View.INVISIBLE
-    }
-
-    private fun updateDiskActivity(isActive: Boolean) {
-        progress_disk.visibility = if (isActive) View.VISIBLE else View.INVISIBLE
-    }
-
-    private fun updateNetworkActivity(isActive: Boolean) {
-        progress_api.visibility = if (isActive) View.VISIBLE else View.INVISIBLE
+    override fun onDestroy() {
+        cancel()
+        super.onDestroy()
     }
 }
 

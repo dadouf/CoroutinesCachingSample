@@ -25,5 +25,26 @@ suspend fun <T> log(s: String, block: suspend () -> T): T {
     }
 }
 
+interface DescribableResource {
+    fun describeStatus()
+}
+
+class StatusLogger(private val listener: (Status) -> Unit) {
+    fun log(status: Status) {
+        listener.invoke(status)
+    }
+
+    sealed class Status {
+        class ApiStatus(
+            val isActive: Boolean,
+            val nextResponse: Api.ProgrammableResponse,
+            val nextResponseDelay: Long
+        ) : Status()
+
+        class RamStatus(val isActive: Boolean, val description: String?) : Status()
+        class DiskStatus(val isActive: Boolean, val description: String?) : Status()
+    }
+}
+
 fun Date.formatAsTime() = SimpleDateFormat.getTimeInstance().format(this)
 fun Long.formatAsTime() = SimpleDateFormat.getTimeInstance().format(Date(this))

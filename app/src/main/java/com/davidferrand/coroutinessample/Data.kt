@@ -7,11 +7,8 @@ import java.util.*
 
 @Entity(tableName = "data")
 data class Data(
-    @ColumnInfo(name = "id")
-    @PrimaryKey
-    val id: Int,
-    @ColumnInfo(name = "expires_at_ms")
-    val expiresAtMs: Long
+    @ColumnInfo(name = "id") @PrimaryKey val id: Int,
+    @ColumnInfo(name = "expires_at_ms") val expiresAtMs: Long
 ) {
     fun isFresh() = Date(expiresAtMs).after(Date())
 
