@@ -7,7 +7,7 @@ class Agent(
     private val disk: Cache,
     private val api: Api
 ) {
-    private val sideEffectsScope = CoroutineScope(Dispatchers.IO)
+    private val sideEffectsScope = CoroutineScope(Dispatchers.Default)
 
     /**
      * @return the best available data and its source
@@ -28,7 +28,7 @@ class Agent(
             return diskData to "DISK"
         }
 
-        return try {
+        try {
             val fetchJob = GlobalScope.async {
                 api.fetch()
                 // TODO represent the parsing as a long operation on non-IO dispatcher
@@ -41,7 +41,7 @@ class Agent(
             }
 
             delay(5_000) // FIXME this should be a max delay!!!
-            fetchJob.getCompleted() to "API"
+            return fetchJob.getCompleted() to "API"
 
             // FIXME network error with delay set to 3_000 crashes the app!
 
@@ -49,8 +49,10 @@ class Agent(
             log("Got an error", t)
 
             // Fallback to RAM or DISK if possible
-            ramData?.let { it to "RAM" }
+            return ramData?.let { it to "RAM" }
                 ?: diskData?.let { it to "DISK" }
+
+            // FIXME if we fallback with diskData, we should write it to RAM
         }
     }
 

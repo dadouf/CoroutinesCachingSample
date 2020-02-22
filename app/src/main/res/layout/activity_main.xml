@@ -61,12 +61,24 @@
 
     <TextView
         android:id="@+id/status_ram"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="RAM contents: "
+        app:layout_constraintEnd_toStartOf="@id/button_clear_ram"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/api_status_success" />
+
+
+    <Button
+        android:id="@+id/button_clear_ram"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Clear"
+        app:layout_constraintBottom_toBottomOf="@id/status_ram"
+        app:layout_constraintEnd_toStartOf="@id/progress_ram"
+        app:layout_constraintStart_toEndOf="@id/status_ram"
+        app:layout_constraintTop_toTopOf="@id/status_ram" />
 
     <ProgressBar
         android:id="@+id/progress_ram"

@@ -75,7 +75,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                         val result = log("agent.getData()") { agent.getData() }
                         val duration = System.currentTimeMillis() - startMs
 
-                        main_status.text = if (result != null) {
+                        main_status.text = "${Date().formatAsTime()}: " + if (result != null) {
                             val (data, source) = result
                             "Got data from $source after ${duration}ms: $data"
 
@@ -124,11 +124,8 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             }
         })
 
-        button_clear_disk.setOnClickListener {
-            launch {
-                disk.clear()
-            }
-        }
+        button_clear_ram.setOnClickListener { launch { ram.clear() } }
+        button_clear_disk.setOnClickListener { launch { disk.clear() } }
     }
 
     override fun onStart() {
