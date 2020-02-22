@@ -1,6 +1,8 @@
 package com.davidferrand.coroutinessample
 
 import android.util.Log
+import java.text.SimpleDateFormat
+import java.util.*
 
 fun log(s: String, t: Throwable? = null) {
     val tag = "SHITSHOW"
@@ -22,3 +24,6 @@ suspend fun <T> log(s: String, block: suspend () -> T): T {
         log("$s: FINISHED in ${System.currentTimeMillis() - startMs}ms")
     }
 }
+
+fun Date.formatAsTime() = SimpleDateFormat.getTimeInstance().format(this)
+fun Long.formatAsTime() = SimpleDateFormat.getTimeInstance().format(Date(this))

@@ -3,7 +3,6 @@ package com.davidferrand.coroutinessample
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
-import java.util.*
 import kotlin.properties.Delegates
 import kotlin.reflect.KProperty
 
@@ -38,8 +37,8 @@ class Api(onActiveJobCountChangedObserver: (property: KProperty<*>, oldValue: In
 
                 if (processingResponse == ProgrammableResponse.SUCCEED) {
                     Data(
-                        ++latestId,
-                        expiresAtMs = Date(System.currentTimeMillis() + 60_000)
+                        id = ++latestId,
+                        expiresAtMs = System.currentTimeMillis() + 60_000
                     )
 
                 } else {

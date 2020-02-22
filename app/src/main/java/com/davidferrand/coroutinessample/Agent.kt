@@ -1,8 +1,6 @@
 package com.davidferrand.coroutinessample
 
 import kotlinx.coroutines.*
-import java.text.SimpleDateFormat
-import java.util.*
 
 class Agent(
     private val ram: Cache,
@@ -60,15 +58,3 @@ class Agent(
     }
 }
 
-data class Data(
-    val id: Int,
-    val expiresAtMs: Date
-) {
-    fun isFresh() = expiresAtMs.after(Date())
-
-    override fun toString(): String {
-        return "Data(\n\tid=$id,\n\texpiresAt=${SimpleDateFormat.getTimeInstance().format(
-            expiresAtMs
-        )})"
-    }
-}

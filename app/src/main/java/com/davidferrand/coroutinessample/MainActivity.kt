@@ -10,7 +10,6 @@ import android.widget.ArrayAdapter
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.*
-import java.text.SimpleDateFormat
 import java.util.*
 
 @SuppressLint("SetTextI18n")
@@ -21,22 +20,25 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
     // TODO timeout
     // TODO introduce Retrofit and room
 
-    private val ram: Cache = RamCache()
+    private val ram: Cache by lazy { RamCache() }
 //        onDataChangedObserver = { _, _, newValue -> launch { updateRamStatus(newValue) } },
 //        onActiveJobCountChangedObserver = { _, _, newValue -> launch { updateRamActivity(newValue > 0) } })
 
 
-    private val disk: Cache = DiskCache()
+    private val dao by lazy { AppDatabase.getInstance(this).dataDao() }
+    private val disk: Cache by lazy { DiskCache(dao) }
 //        onDataChangedObserver = { _, _, newValue -> launch { updateDiskStatus(newValue) } },
 //        onActiveJobCountChangedObserver = { _, _, newValue -> launch { updateDiskActivity(newValue > 0) } })
 
-    private val api: Api = Api(
-        onActiveJobCountChangedObserver = { _, _, newValue ->
-            launch { updateNetworkActivity(newValue > 0) }
-        }
-    )
+    private val api by lazy {
+        Api(
+            onActiveJobCountChangedObserver = { _, _, newValue ->
+                launch { updateNetworkActivity(newValue > 0) }
+            }
+        )
+    }
 
-    private val agent = Agent(ram, disk, api)
+    private val agent by lazy { Agent(ram, disk, api) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -108,7 +110,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             while (true) {
                 delay(1_000)
                 status_now.text =
-                    "NOW: ${SimpleDateFormat.getTimeInstance().format(Date())}".also { log(it) }
+                    "NOW: ${Date().formatAsTime()}".also { log(it) }
             }
         }
 
