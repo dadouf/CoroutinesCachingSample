@@ -6,85 +6,68 @@ class Agent(
     private val local: Cache,
     private val remote: Api
 ) {
-    // These two scopes are introduced for operation that should NOT be cancelled
+    // These two scopes are introduced for operations that should NOT be cancelled
     // by the user leaving the screen/app
-    // TODO maybe I need exception handlers
-    private val apiReadScope = CoroutineScope(Dispatchers.Default)
-    private val cacheWriteScope = CoroutineScope(Dispatchers.Default)
+    private val apiReadScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val cacheWriteScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+
+    private val getDataTimeoutMs: Long = 5_000
 
     /**
      * @return the best available data and its source
      */
-    suspend fun getData(): Pair<Data, String>? = coroutineScope {
+    suspend fun getData(): Pair<Data, String>? {
         // TODO <-- do i need the coroutineScope? why?
 
-        try {
-            val localData = local.read()
+        val requestStartMs = System.currentTimeMillis()
 
-            if (localData != null && localData.isFresh()) {
-                log("ramData is fresh, using it")
-                return@coroutineScope localData to "LOCAL"
+        val localData: Data? =
+            try {
+                local.read()
+            } catch (t: Throwable) {
+                log("Error thrown by local.read(). CAUGHT, will return null.", t)
+                null
             }
-        } catch (t: Throwable) {
-            log("Error thrown by local.read()", t)
-            throw t
+
+        if (localData != null && localData.isFresh()) {
+            log("localData is fresh, using it")
+            return localData to "LOCAL"
         }
 
         try {
-            // Launch the job in a separate scope so that it doesn't get cancelled
-            // on timeout. TODO test it
-            val fetchJob = apiReadScope.async {
-                try {
-                    remote.fetch()
-                } catch (t: Throwable) {
-                    log("Error thrown by remote.fetch() in apiReadScope")
-                    throw t
-                }
-                // TODO introduce retrofit
-                // TODO represent the parsing as a long operation on non-IO dispatcher
-            }
+            // TODO introduce retrofit
+            // TODO represent the parsing as a long operation on non-IO dispatcher (what's good practice?)
+
+            // Launch the job in a separate scope so that it doesn't get cancelled on timeout
+            val fetchJob = apiReadScope.async { remote.fetch() }
 
             cacheWriteScope.launch {
                 try {
-                    val networkDataForCaching = fetchJob.await()
-                    local.write(networkDataForCaching)
+                    local.write(fetchJob.await())
                 } catch (t: Throwable) {
-                    log("Error thrown when trying to save network result in cachesWriteScope", t)
-                    throw t
+                    log(
+                        "Error thrown when trying to save network result in cachesWriteScope. CAUGHT, will ignore.",
+                        t
+                    )
                 }
             }
 
-            return@coroutineScope withTimeout(5_000) {
-                try {
-                    fetchJob.await()
-                } catch (t: Throwable) {
-                    log("Error thrown by fetchJob.await() in timeout scope", t)
-                    throw t
-                }
-            } to "API"
-
-            // FIXME network error with delay set to 3_000 crashes the app!
-            // FIXME appears fixed - but can't recover after a network error
+            // getDataTimeoutMs is TOTAL: if it's set to 5s and I've waited 2s for disk data
+            // already, only allow the remaining 3s for the network.
+            val elapsedSinceRequestStartMs = System.currentTimeMillis() - requestStartMs
+            return withTimeout(getDataTimeoutMs - elapsedSinceRequestStartMs) { fetchJob.await() } to "API"
 
         } catch (t: Throwable) {
-            log("Error thrown by remote.fetch() or some resulting code", t)
-            throw t
-//            log("Error with fetchJob - main branch", t)
-//
-//            // Fallback to LOCAL data if possible
-//            return@coroutineScope localData?.let { it to "LOCAL" }
-
-            // FIXME if we fallback with diskData, we should write it to RAM
+            log("Error thrown by remote.fetch(). CAUGHT, will try to fallback to local data", t)
+            return localData?.let { it to "LOCAL" }
         }
-
-        // FIXME case that fails:
-        // stale data
-        // network will succeed post timeout
-        // get data
-        // display says fail even though it could be using the local as fallback
     }
 
     fun refresh() {
+        // TODO implement:
+        // - we don't need to fetch ALL the data from cache, just check its freshness
+        // - if not fresh, then fetch and store in background
+        // A simple (non-optimized) version just does getData() but ignores the result
     }
 }
 

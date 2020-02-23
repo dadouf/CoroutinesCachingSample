@@ -2,10 +2,7 @@ package com.davidferrand.coroutinessample
 
 import android.content.Context
 import androidx.room.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import java.io.IOException
 
 abstract class Cache(
@@ -46,47 +43,63 @@ class CompoundCache(
     val disk: Cache
 ) : Cache("localCache") {
 
-    private val cacheWriteScope = CoroutineScope(Dispatchers.Default)
+    private val cacheWriteScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     override suspend fun actuallyRead(): Data? {
         // TODO do I need the coroutineScope here? why/not?
-        try {
-            val ramData = ram.read()
-
-            if (ramData != null && ramData.isFresh()) {
-                log("ramData is fresh, using it")
-                return ramData
+        val ramData: Data? =
+            try {
+                ram.read()
+            } catch (t: Throwable) {
+                log("Error thrown by ram.read(). CAUGHT, will return null.", t)
+                null
             }
-        } catch (t: Throwable) {
-            log("Error thrown by ram.read()", t)
-            throw t
+
+        if (ramData != null && ramData.isFresh()) {
+            log("ramData is fresh, using it")
+            return ramData
+
+            // A possible optimization here would be: if ramData!=null but stale,
+            // return it directly. That would be assuming that it's useless to read diskData
+            // which is reasonable: in our implementation, diskData is never fresher than ramData,
+            // since both are written at the same time.
         }
 
-        try {
-            val diskData = disk.read()
-            if (diskData != null && diskData.isFresh()) {
-                log("diskData is fresh, using it")
-                cacheWriteScope.launch {
-                    try {
-                        ram.write(diskData)
-                    } catch (t: Throwable) {
-                        log("Error thrown by ram.write() in cacheWriteScope", t)
-                        throw t
-                    }
-                }
-
-                return diskData
+        val diskData: Data? =
+            try {
+                disk.read()
+            } catch (t: Throwable) {
+                log("Error thrown by disk.read(). CAUGHT, will return null", t)
+                null
             }
-        } catch (t: Throwable) {
-            log("Error thrown by disk.read() or the side effect", t)
-            throw t
+
+        if (diskData != null && diskData.isFresh()) {
+            log("diskData is fresh, using it and saving it to RAM")
+
+            // A possible optimization here would be: if diskData!=null but stale,
+            // write it to RAM as well.
+            writeToRamAsSideEffect(diskData)
+
+            return diskData
         }
 
-        return null
+        // None of the data was fresh, but stale is better than null
+        return ramData ?: diskData
+    }
+
+    private fun writeToRamAsSideEffect(diskData: Data) {
+        cacheWriteScope.launch {
+            try {
+                ram.write(diskData)
+            } catch (t: Throwable) {
+                log("Error thrown by ram.write() in cacheWriteScope. CAUGHT, will ignore.", t)
+            }
+        }
     }
 
     override suspend fun actuallyWrite(data: Data) {
-        // TODO they don't need to be sequential
+        // TODO they don't need to be sequential, they could be launched as side effects, in which
+        // case actuallyWrite doesn't need to be suspending -- what's the good pattern here?
         ram.write(data)
         disk.write(data)
     }

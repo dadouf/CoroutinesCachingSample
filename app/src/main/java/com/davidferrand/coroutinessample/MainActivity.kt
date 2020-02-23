@@ -15,6 +15,24 @@ import java.util.*
 /**
  * Resources used to achieve this:
  * - https://medium.com/androiddevelopers/coroutines-on-android-part-i-getting-the-background-3e0e54d20bb
+ *
+ * Some rules I've discovered
+ * - Side-effect work must be launch{}ed in a SEPARATE scope B than the current scope A (fire and
+ *   forget on another thread and continue current co-routine in A directly). That way: (1) if A
+ *   gets cancelled or errs, B doesn't.
+ * - Errors NEVER propagate from INSIDE a launch{} block to OUTSIDE. So they must be caught within,
+ *   otherwise they'll crash the app.
+ * - Errors DO propagate from INSIDE withTimeout{} / coroutineScope{} block to OUTSIDE
+ * - Errors in an async{} block are surfaced/thrown LATER, whenever job.await() is called. That
+ *   is where await() must be wrapped with a try/catch.
+ * - SupervisorJob is CRUCIAL for scopes that get reused. Without that, any error in the scope
+ *   (even more prominent in async{} where we don't usually try/catch) cancels the whole scope for
+ *   any future job.
+ *
+ * TODO to discover
+ *   - I'm still not sure what coroutineScope{} is about
+ *   - I'm still not sure about the proper syntax to ensure that some given work is done on a specific
+ *     context/dispatcher
  */
 @SuppressLint("SetTextI18n")
 class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
@@ -61,44 +79,35 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             log("Click to get data")
             val startMs = System.currentTimeMillis()
 
-            try {
-                runningGetDataJob = launch {
-                    get_data_progress.visibility = View.VISIBLE
-                    get_data_button.text = "Cancel"
+            runningGetDataJob = launch {
+                get_data_progress.visibility = View.VISIBLE
+                get_data_button.text = "Cancel"
 
-                    // TODO button to cancel load
-                    //  --> expectation it cancels the load to display but not the underlying network call (never the underlying network call!)
+                try {
+                    val result = agent.getData()
+                    val duration = System.currentTimeMillis() - startMs
 
-                    try {
-                        val result = agent.getData()
-                        val duration = System.currentTimeMillis() - startMs
+                    get_data_result.text = "${Date().formatAsTime()}: " + if (result != null) {
+                        val (data, source) = result
+                        "Got data from $source after ${duration}ms: $data"
 
-                        get_data_result.text = "${Date().formatAsTime()}: " + if (result != null) {
-                            val (data, source) = result
-                            "Got data from $source after ${duration}ms: $data"
+                    } else {
+                        "Tried but got NO data after ${duration}ms"
+                    }.also { log(it) }
 
-                        } else {
-                            "Tried but got NO data after ${duration}ms"
-                        }.also { log(it) }
+                } catch (t: Throwable) {
+                    log("Error thrown by agent.getData()", t)
 
-                    } catch (t: Throwable) {
-                        log("Error thrown by agent.getData()", t)
+                    get_data_result.text =
+                        "${Date().formatAsTime()}: Error trying to get data: $t"
 
-                        get_data_result.text =
-                            "${Date().formatAsTime()}: Error trying to get data: $t"
-                                .also { log(it, t) }
+                    throw t
 
-                        throw t
-
-                    } finally {
-                        runningGetDataJob = null
-                        get_data_progress.visibility = View.INVISIBLE
-                        get_data_button.text = "Get data"
-                    }
+                } finally {
+                    runningGetDataJob = null
+                    get_data_progress.visibility = View.INVISIBLE
+                    get_data_button.text = "Get data"
                 }
-            } catch (t: Throwable) {
-                log("Error thrown by top-level runningGetDataJob", t)
-                throw t
             }
         }
 
@@ -128,19 +137,24 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
     override fun onStart() {
         super.onStart()
 
-        launch {
-            while (true) {
-                delay(1_000)
-                val time = Date().formatAsTime()
-
-                clock.text = "NOW: $time"
-                Log.v("NOW", time)
-            }
-        }
+        startClock()
 
         updateRamStatus()
         updateDiskStatus()
         updateApiStatus()
+    }
+
+    private fun startClock() {
+        launch {
+            while (true) {
+                val time = Date().formatAsTime()
+
+                clock.text = "NOW: $time"
+                Log.v("NOW", time)
+
+                delay(1_000)
+            }
+        }
     }
 
     override fun onStop() {
