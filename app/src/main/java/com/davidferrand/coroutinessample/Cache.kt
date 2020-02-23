@@ -5,12 +5,7 @@ import androidx.room.*
 import kotlinx.coroutines.*
 import java.io.IOException
 
-abstract class Cache(
-    private val tag: String
-) : DescribableContents {
-
-    // TODO check behavior when caches throw error (for whatever reason)
-
+abstract class Cache(private val tag: String) : DescribableContents {
     val readAction = Action("$tag.read")
     val writeAction = Action("$tag.write")
 
@@ -18,6 +13,11 @@ abstract class Cache(
     suspend fun write(data: Data) = doWork(writeAction) { actuallyWrite(data) }
     suspend fun clear() = doWork(writeAction) { actuallyClear() }
 
+    /**
+     * This method and the difference between read and actuallyRead only exists because of
+     * some debug features (programming and watching). A real implementation would directly
+     * implement read, write and clear
+     */
     private suspend fun <T> doWork(action: Action, actualWork: suspend () -> T): T =
         log("${action.tag} operation") {
             action.activityCount++
@@ -47,66 +47,70 @@ class CompoundCache(
 
     override suspend fun actuallyRead(): Data? {
         // TODO do I need the coroutineScope here? why/not?
-        val ramData: Data? =
-            try {
-                ram.read()
-            } catch (t: Throwable) {
-                log("Error thrown by ram.read(). CAUGHT, will return null.", t)
-                null
-            }
+        val ramData: Data? = ram.readSafely()
 
-        if (ramData != null && ramData.isFresh()) {
-            log("ramData is fresh, using it")
+        if (ramData != null) {
+            // If ramData exists, even if stale, return it directly. In our implementation
+            // diskData is never fresher than ramData, since both are written at the same time.
+            // So don't waste resources reading from disk: use ramData.
+
             return ramData
-
-            // A possible optimization here would be: if ramData!=null but stale,
-            // return it directly. That would be assuming that it's useless to read diskData
-            // which is reasonable: in our implementation, diskData is never fresher than ramData,
-            // since both are written at the same time.
         }
 
-        val diskData: Data? =
-            try {
-                disk.read()
-            } catch (t: Throwable) {
-                log("Error thrown by disk.read(). CAUGHT, will return null", t)
-                null
-            }
+        val diskData: Data? = disk.readSafely()
 
-        if (diskData != null && diskData.isFresh()) {
-            log("diskData is fresh, using it and saving it to RAM")
-
-            // A possible optimization here would be: if diskData!=null but stale,
-            // write it to RAM as well.
-            writeToRamAsSideEffect(diskData)
-
-            return diskData
+        if (diskData != null) {
+            // If diskData exists, even if stale, save it to RAM
+            ram.writeAsync(diskData)
         }
 
-        // None of the data was fresh, but stale is better than null
-        return ramData ?: diskData
-    }
-
-    private fun writeToRamAsSideEffect(diskData: Data) {
-        cacheWriteScope.launch {
-            try {
-                ram.write(diskData)
-            } catch (t: Throwable) {
-                log("Error thrown by ram.write() in cacheWriteScope. CAUGHT, will ignore.", t)
-            }
-        }
+        return diskData
     }
 
     override suspend fun actuallyWrite(data: Data) {
-        // TODO they don't need to be sequential, they could be launched as side effects, in which
-        // case actuallyWrite doesn't need to be suspending -- what's the good pattern here?
-        ram.write(data)
-        disk.write(data)
+        ram.write(data) // Write to RAM synchronously: it's cheap and probably best for consistency
+        disk.writeAsync(data) // Write to DISK a-synchronously: we don't need to wait for it
     }
 
     override suspend fun actuallyClear() {
-        ram.clear()
-        disk.clear()
+        ram.clear() // Write to RAM synchronously: it's cheap and probably best for consistency
+        disk.clearAsync() // Write to DISK a-synchronously: we don't need to wait for it
+    }
+
+    /**
+     * [Cache.read] and turn any error into null
+     */
+    private suspend fun Cache.readSafely(): Data? = try {
+        read()
+    } catch (t: Throwable) {
+        log("Error thrown by read(). CAUGHT, will return null.", t)
+        null
+    }
+
+    /**
+     * Launch [Cache.write] in a side-effect scope and return immediately without suspending.
+     */
+    private fun Cache.writeAsync(data: Data) {
+        cacheWriteScope.launch {
+            try {
+                write(data)
+            } catch (t: Throwable) {
+                log("Error thrown by write() in cacheWriteScope. CAUGHT, will ignore.", t)
+            }
+        }
+    }
+
+    /**
+     * Launch [Cache.clear] in a side-effect scope and return immediately without suspending.
+     */
+    private fun Cache.clearAsync() {
+        cacheWriteScope.launch {
+            try {
+                clear()
+            } catch (t: Throwable) {
+                log("Error thrown by clear() in cacheWriteScope. CAUGHT, will ignore.", t)
+            }
+        }
     }
 
     override fun describeContents() =

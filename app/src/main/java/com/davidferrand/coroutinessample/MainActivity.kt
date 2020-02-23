@@ -210,7 +210,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
     }
 
     private fun updateDiskStatus() {
-        disk_contents.text = "RAM contents: ${disk.describeContents()}"
+        disk_contents.text = "DISK contents: ${disk.describeContents()}"
         updateBusyIndicator(disk_read_busy, disk.readAction.isBusy)
         updateBusyIndicator(disk_write_busy, disk.writeAction.isBusy)
     }
