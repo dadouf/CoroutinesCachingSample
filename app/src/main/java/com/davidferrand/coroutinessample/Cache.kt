@@ -2,37 +2,109 @@ package com.davidferrand.coroutinessample
 
 import android.content.Context
 import androidx.room.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlin.properties.Delegates
+import kotlinx.coroutines.launch
+import java.io.IOException
 
 abstract class Cache(
     private val tag: String
-) : DescribableResource {
+) : DescribableContents {
 
     // TODO check behavior when caches throw error (for whatever reason)
 
-    protected var activeJobCount by Delegates.observable(0) { _, _, _ -> describeStatus() }
-        private set
+    val readAction = Action("$tag.read")
+    val writeAction = Action("$tag.write")
 
-    suspend fun read(): Data? = logAndTrack("$tag.read() operation") { actuallyRead() }
-    suspend fun write(data: Data) = logAndTrack("$tag.write() operation") { actuallyWrite(data) }
-    suspend fun clear() = logAndTrack("$tag.clear() operation") { actuallyClear() }
-
-    abstract suspend fun actuallyRead(): Data?
-    abstract suspend fun actuallyWrite(data: Data)
-    abstract suspend fun actuallyClear()
-
-    private suspend fun <T> logAndTrack(log: String, operation: suspend () -> T) = log(log) {
-        activeJobCount++
+    suspend fun read(): Data? = log("$tag.read() operation") {
+        readAction.activityCount++
         try {
-            operation()
+            if (readAction.nextResult == ProgrammableAction.NextResult.SUCCEED) {
+                actuallyRead()
+            } else {
+                throw IOException("Read failed")
+            }
         } finally {
-            activeJobCount--
+            readAction.activityCount--
         }
     }
+
+    suspend fun write(data: Data) = log("$tag.write() operation") {
+        writeAction.activityCount++
+        try {
+            if (writeAction.nextResult == ProgrammableAction.NextResult.SUCCEED) {
+                actuallyWrite(data)
+            } else {
+                throw IOException("Write failed")
+            }
+        } finally {
+            writeAction.activityCount--
+        }
+    }
+
+    suspend fun clear() = log("$tag.clear() operation") {
+        writeAction.activityCount++
+        try {
+            if (writeAction.nextResult == ProgrammableAction.NextResult.SUCCEED) {
+                actuallyClear()
+            } else {
+                throw IOException("Clear failed")
+            }
+        } finally {
+            writeAction.activityCount--
+        }
+    }
+
+    protected abstract suspend fun actuallyRead(): Data?
+    protected abstract suspend fun actuallyWrite(data: Data)
+    protected abstract suspend fun actuallyClear()
+
 }
 
-class RamCache(val statusLogger: StatusLogger) : Cache("ramCache") {
+class CompoundCache(
+    val ram: Cache,
+    val disk: Cache
+) : Cache("localCache") {
+
+    private val cachesWriteScope = CoroutineScope(Dispatchers.Default)
+
+    override suspend fun actuallyRead(): Data? {
+        val ramData = ram.read()
+
+        if (ramData != null && ramData.isFresh()) {
+            log("ramData is fresh, using it")
+            return ramData
+        }
+
+        val diskData = disk.read()
+        if (diskData != null && diskData.isFresh()) {
+            log("diskData is fresh, using it")
+            cachesWriteScope.launch { ram.write(diskData) }
+
+            return diskData
+        }
+
+        return null
+    }
+
+    override suspend fun actuallyWrite(data: Data) {
+        // TODO they don't need to be sequential
+        ram.write(data)
+        disk.write(data)
+    }
+
+    override suspend fun actuallyClear() {
+        ram.clear()
+        disk.clear()
+    }
+
+    override fun describeContents() =
+        "[RAM] ${ram.describeContents()}\n[DISK] ${disk.describeContents()}"
+}
+
+
+class RamCache : Cache("ramCache") {
     private var cachedData: Data? = null
 
     override suspend fun actuallyRead(): Data? {
@@ -47,51 +119,28 @@ class RamCache(val statusLogger: StatusLogger) : Cache("ramCache") {
         cachedData = null
     }
 
-    override suspend fun initStatus() = describeStatus()
-    override fun describeStatus() {
-        statusLogger.log(
-            StatusLogger.Status.RamStatus(
-                isActive = activeJobCount > 0,
-                description = cachedData.toString()
-            )
-        )
-    }
+    override fun describeContents() = cachedData.toString()
 }
 
 class DiskCache(
-    val dao: DataDao,
-    val statusLogger: StatusLogger,
-    val readDelayMs: Long = 500,
-    val writeDelayMs: Long = 2000
+    val dao: DataDao
 ) : Cache("diskCache") {
     /** Keep a lightweight description of the cache contents */
     private var latestDataDescription: String? = null
 
     override suspend fun actuallyRead(): Data? {
-        return dao.get(readDelayMs).also { latestDataDescription = it.toString() }
+        return dao.get(readAction.delayMs ?: 0).also { latestDataDescription = it.toString() }
     }
 
     override suspend fun actuallyWrite(data: Data) {
-        dao.set(data, writeDelayMs).also { latestDataDescription = data.toString() }
+        dao.set(data, writeAction.delayMs ?: 0).also { latestDataDescription = data.toString() }
     }
 
     override suspend fun actuallyClear() {
-        dao.clear(writeDelayMs).also { latestDataDescription = null }
+        dao.clear(writeAction.delayMs ?: 0).also { latestDataDescription = null }
     }
 
-    override suspend fun initStatus() {
-        read()
-        describeStatus()
-    }
-
-    override fun describeStatus() {
-        statusLogger.log(
-            StatusLogger.Status.DiskStatus(
-                isActive = activeJobCount > 0,
-                description = latestDataDescription
-            )
-        )
-    }
+    override fun describeContents() = latestDataDescription
 }
 
 @Database(entities = [Data::class], version = 1)

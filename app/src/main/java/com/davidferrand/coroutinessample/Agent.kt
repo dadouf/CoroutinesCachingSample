@@ -3,13 +3,13 @@ package com.davidferrand.coroutinessample
 import kotlinx.coroutines.*
 
 class Agent(
-    private val ram: Cache,
-    private val disk: Cache,
-    private val api: Api
+    private val local: Cache,
+    private val remote: Api
 ) {
     // These two scopes are introduced for operation that should NOT be cancelled
     // by the user leaving the screen/app
-    private val apiReadScope = CoroutineScope(Dispatchers.Default) // TODO maybe I need exception handlers
+    private val apiReadScope =
+        CoroutineScope(Dispatchers.Default) // TODO maybe I need exception handlers
     private val cachesWriteScope = CoroutineScope(Dispatchers.Default)
 
     /**
@@ -17,24 +17,18 @@ class Agent(
      */
     suspend fun getData(): Pair<Data, String>? = coroutineScope {
         // TODO <-- do i need the coroutineScope? why?
-        val ramData = ram.read()
+        val localData = local.read()
 
-        if (ramData != null && ramData.isFresh()) {
+        if (localData != null && localData.isFresh()) {
             log("ramData is fresh, using it")
-            return@coroutineScope ramData to "RAM"
-        }
-
-        val diskData = disk.read()
-        if (diskData != null && diskData.isFresh()) {
-            log("diskData is fresh, using it")
-
-            cachesWriteScope.launch { ram.write(diskData) }
-            return@coroutineScope diskData to "DISK"
+            return@coroutineScope localData to "LOCAL"
         }
 
         try {
+            // Launch the job in a separate scope so that it doesn't get cancelled
+            // on timeout. TODO test it
             val fetchJob = apiReadScope.async {
-                api.fetch()
+                remote.fetch()
                 // TODO introduce retrofit
                 // TODO represent the parsing as a long operation on non-IO dispatcher
             }
@@ -42,13 +36,12 @@ class Agent(
             cachesWriteScope.launch {
                 try {
                     val networkDataForCaching = fetchJob.await()
-                    launch { ram.write(networkDataForCaching) }
-                    launch { disk.write(networkDataForCaching) }
+                    launch { local.write(networkDataForCaching) }
                 } catch (t: Throwable) {
                     log("Error with fetchJob - side effect", t)
 
                     // Catch exception otherwise the app crashes (unhandled)
-//                    throw t
+                    throw t
                 }
             }
 
@@ -58,14 +51,20 @@ class Agent(
             // FIXME appears fixed - but can't recover after a network error
 
         } catch (t: Throwable) {
-            log("Error with fetchJob - main branch", t)
-
-            // Fallback to RAM or DISK if possible
-            return@coroutineScope ramData?.let { it to "RAM" }
-                ?: diskData?.let { it to "DISK" }
+            throw t
+//            log("Error with fetchJob - main branch", t)
+//
+//            // Fallback to LOCAL data if possible
+//            return@coroutineScope localData?.let { it to "LOCAL" }
 
             // FIXME if we fallback with diskData, we should write it to RAM
         }
+
+        // FIXME case that fails:
+        // stale data
+        // network will succeed post timeout
+        // get data
+        // display says fail even though it could be using the local as fallback
     }
 
     fun refresh() {

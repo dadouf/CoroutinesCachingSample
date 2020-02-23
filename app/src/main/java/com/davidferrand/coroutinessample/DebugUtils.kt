@@ -3,6 +3,7 @@ package com.davidferrand.coroutinessample
 import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.properties.Delegates
 
 fun log(s: String, t: Throwable? = null) {
     val tag = "SHITSHOW"
@@ -25,25 +26,43 @@ suspend fun <T> log(s: String, block: suspend () -> T): T {
     }
 }
 
-interface DescribableResource {
-    suspend fun initStatus()
-    fun describeStatus()
+interface DescribableContents {
+    fun describeContents(): String?
 }
 
-class StatusLogger(private val listener: (Status) -> Unit) {
-    fun log(status: Status) {
-        listener.invoke(status)
+interface ProgrammableAction {
+    var delayMs: Long?
+    var nextResult: NextResult
+
+    enum class NextResult {
+        SUCCEED, FAIL
     }
+}
 
-    sealed class Status {
-        class ApiStatus(
-            val isActive: Boolean,
-            val nextResponse: Api.ProgrammableResponse,
-            val nextResponseDelay: Long
-        ) : Status()
+interface WatchableAction {
+    var onActivityChange: (Boolean) -> Unit
+    var activityCount: Int
+    val isBusy: Boolean
+        get() = activityCount > 0
+}
 
-        class RamStatus(val isActive: Boolean, val description: String?) : Status()
-        class DiskStatus(val isActive: Boolean, val description: String?) : Status()
+class Action(val tag: String = "action") : ProgrammableAction, WatchableAction {
+    override var delayMs: Long? = null
+        set(value) {
+            field = value
+            log("$tag.delayMs = $value")
+        }
+    override var nextResult: ProgrammableAction.NextResult =
+        ProgrammableAction.NextResult.SUCCEED
+        set(value) {
+            field = value
+            log("$tag.nextResult = $value")
+        }
+
+    override var onActivityChange: (Boolean) -> Unit = {}
+
+    override var activityCount: Int by Delegates.observable(0) { _, _, newValue ->
+        onActivityChange.invoke(newValue > 0)
     }
 }
 

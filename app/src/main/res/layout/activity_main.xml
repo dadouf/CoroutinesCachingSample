@@ -7,148 +7,356 @@
     android:padding="16dp"
     tools:context=".MainActivity">
 
-    <TextView
-        android:id="@+id/api_status_text_start"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="API will"
-        app:layout_constraintBottom_toBottomOf="@id/api_status_success"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@id/api_status_success" />
+    <!-- CLOCK -->
 
-    <Spinner
-        android:id="@+id/api_status_success"
+    <TextView
+        android:id="@+id/clock"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintStart_toEndOf="@id/api_status_text_start"
+        android:text="NOW: "
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <!-- API -->
+    <Spinner
+        android:id="@+id/api_program_result"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        app:layout_constraintStart_toEndOf="@id/api_program_text_start"
+        app:layout_constraintTop_toBottomOf="@id/clock" />
+
     <TextView
-        android:id="@+id/api_status_text_middle"
+        android:id="@+id/api_program_text_start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="API fetch will"
+        app:layout_constraintBottom_toBottomOf="@id/api_program_result"
+        app:layout_constraintStart_toEndOf="@id/api_busy"
+        app:layout_constraintTop_toTopOf="@id/api_program_result" />
+
+    <TextView
+        android:id="@+id/api_program_text_middle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="in"
-        app:layout_constraintBottom_toBottomOf="@id/api_status_success"
-        app:layout_constraintStart_toEndOf="@id/api_status_success"
-        app:layout_constraintTop_toTopOf="@id/api_status_success" />
+        app:layout_constraintBottom_toBottomOf="@id/api_program_result"
+        app:layout_constraintStart_toEndOf="@id/api_program_result"
+        app:layout_constraintTop_toTopOf="@id/api_program_result" />
 
     <EditText
-        android:id="@+id/api_status_delay"
+        android:id="@+id/api_program_delay"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:inputType="number"
         android:minWidth="80dp"
-        app:layout_constraintBottom_toBottomOf="@id/api_status_success"
-        app:layout_constraintStart_toEndOf="@id/api_status_text_middle"
-        app:layout_constraintTop_toTopOf="@id/api_status_success" />
+        app:layout_constraintBottom_toBottomOf="@id/api_program_result"
+        app:layout_constraintStart_toEndOf="@id/api_program_text_middle"
+        app:layout_constraintTop_toTopOf="@id/api_program_result" />
 
     <TextView
-        android:id="@+id/api_status_text_end"
+        android:id="@+id/api_program_text_end"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="ms"
-        app:layout_constraintBottom_toBottomOf="@id/api_status_success"
-        app:layout_constraintStart_toEndOf="@id/api_status_delay"
-        app:layout_constraintTop_toTopOf="@id/api_status_success" />
+        app:layout_constraintBottom_toBottomOf="@id/api_program_result"
+        app:layout_constraintStart_toEndOf="@id/api_program_delay"
+        app:layout_constraintTop_toTopOf="@id/api_program_result" />
 
     <ProgressBar
-        android:id="@+id/progress_api"
+        android:id="@+id/api_busy"
         android:layout_width="24dp"
         android:layout_height="24dp"
-        app:layout_constraintBottom_toBottomOf="@id/api_status_success"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@id/api_status_success" />
+        app:layout_constraintBottom_toBottomOf="@id/api_program_result"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/api_program_result" />
 
-    <TextView
-        android:id="@+id/status_ram"
-        android:layout_width="0dp"
+    <!-- RAM READ -->
+
+    <Spinner
+        android:id="@+id/ram_read_program_result"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
+        app:layout_constraintStart_toEndOf="@id/ram_read_program_text_start"
+        app:layout_constraintTop_toBottomOf="@id/api_program_result" />
+
+    <TextView
+        android:id="@+id/ram_read_program_text_start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="RAM read will"
+        app:layout_constraintBottom_toBottomOf="@id/ram_read_program_result"
+        app:layout_constraintStart_toEndOf="@id/ram_read_busy"
+        app:layout_constraintTop_toTopOf="@id/ram_read_program_result" />
+
+    <TextView
+        android:id="@+id/ram_read_program_text_middle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="in"
+        app:layout_constraintBottom_toBottomOf="@id/ram_read_program_result"
+        app:layout_constraintStart_toEndOf="@id/ram_read_program_result"
+        app:layout_constraintTop_toTopOf="@id/ram_read_program_result" />
+
+    <EditText
+        android:id="@+id/ram_read_program_delay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="number"
+        android:minWidth="80dp"
+        app:layout_constraintBottom_toBottomOf="@id/ram_read_program_result"
+        app:layout_constraintStart_toEndOf="@id/ram_read_program_text_middle"
+        app:layout_constraintTop_toTopOf="@id/ram_read_program_result" />
+
+    <TextView
+        android:id="@+id/ram_read_program_text_end"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ms"
+        app:layout_constraintBottom_toBottomOf="@id/ram_read_program_result"
+        app:layout_constraintStart_toEndOf="@id/ram_read_program_delay"
+        app:layout_constraintTop_toTopOf="@id/ram_read_program_result" />
+
+    <ProgressBar
+        android:id="@+id/ram_read_busy"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        app:layout_constraintBottom_toBottomOf="@id/ram_read_program_result"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/ram_read_program_result" />
+
+    <!-- RAM WRITE -->
+
+    <Spinner
+        android:id="@+id/ram_write_program_result"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toEndOf="@id/ram_write_program_text_start"
+        app:layout_constraintTop_toBottomOf="@id/ram_read_program_text_start" />
+
+    <TextView
+        android:id="@+id/ram_write_program_text_start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="RAM write will"
+        app:layout_constraintBottom_toBottomOf="@id/ram_write_program_result"
+        app:layout_constraintStart_toEndOf="@id/ram_write_busy"
+        app:layout_constraintTop_toTopOf="@id/ram_write_program_result" />
+
+    <TextView
+        android:id="@+id/ram_write_program_text_middle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="in"
+        app:layout_constraintBottom_toBottomOf="@id/ram_write_program_result"
+        app:layout_constraintStart_toEndOf="@id/ram_write_program_result"
+        app:layout_constraintTop_toTopOf="@id/ram_write_program_result" />
+
+    <EditText
+        android:id="@+id/ram_write_program_delay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="number"
+        android:minWidth="80dp"
+        app:layout_constraintBottom_toBottomOf="@id/ram_write_program_result"
+        app:layout_constraintStart_toEndOf="@id/ram_write_program_text_middle"
+        app:layout_constraintTop_toTopOf="@id/ram_write_program_result" />
+
+    <TextView
+        android:id="@+id/ram_write_program_text_end"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ms"
+        app:layout_constraintBottom_toBottomOf="@id/ram_write_program_result"
+        app:layout_constraintStart_toEndOf="@id/ram_write_program_delay"
+        app:layout_constraintTop_toTopOf="@id/ram_write_program_result" />
+
+    <ProgressBar
+        android:id="@+id/ram_write_busy"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        app:layout_constraintBottom_toBottomOf="@id/ram_write_program_result"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/ram_write_program_result" />
+
+    <!-- RAM CONTENTS -->
+
+    <TextView
+        android:id="@+id/ram_contents"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
         android:text="RAM contents: "
-        app:layout_constraintEnd_toStartOf="@id/button_clear_ram"
+        app:layout_constraintEnd_toStartOf="@id/ram_contents_clear"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/api_status_success" />
-
+        app:layout_constraintTop_toBottomOf="@+id/ram_write_program_result" />
 
     <Button
-        android:id="@+id/button_clear_ram"
+        android:id="@+id/ram_contents_clear"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Clear"
-        app:layout_constraintBottom_toBottomOf="@id/status_ram"
-        app:layout_constraintEnd_toStartOf="@id/progress_ram"
-        app:layout_constraintStart_toEndOf="@id/status_ram"
-        app:layout_constraintTop_toTopOf="@id/status_ram" />
-
-    <ProgressBar
-        android:id="@+id/progress_ram"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        app:layout_constraintBottom_toBottomOf="@id/status_ram"
+        app:layout_constraintBottom_toBottomOf="@id/ram_contents"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@id/status_ram" />
+        app:layout_constraintStart_toEndOf="@id/ram_contents"
+        app:layout_constraintTop_toTopOf="@id/ram_contents" />
+
+    <!-- DISK READ -->
+
+    <Spinner
+        android:id="@+id/disk_read_program_result"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        app:layout_constraintStart_toEndOf="@id/disk_read_program_text_start"
+        app:layout_constraintTop_toBottomOf="@id/ram_contents" />
 
     <TextView
-        android:id="@+id/status_disk"
+        android:id="@+id/disk_read_program_text_start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="DISK read will"
+        app:layout_constraintBottom_toBottomOf="@id/disk_read_program_result"
+        app:layout_constraintStart_toEndOf="@id/disk_read_busy"
+        app:layout_constraintTop_toTopOf="@id/disk_read_program_result" />
+
+    <TextView
+        android:id="@+id/disk_read_program_text_middle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="in"
+        app:layout_constraintBottom_toBottomOf="@id/disk_read_program_result"
+        app:layout_constraintStart_toEndOf="@id/disk_read_program_result"
+        app:layout_constraintTop_toTopOf="@id/disk_read_program_result" />
+
+    <EditText
+        android:id="@+id/disk_read_program_delay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="number"
+        android:minWidth="80dp"
+        app:layout_constraintBottom_toBottomOf="@id/disk_read_program_result"
+        app:layout_constraintStart_toEndOf="@id/disk_read_program_text_middle"
+        app:layout_constraintTop_toTopOf="@id/disk_read_program_result" />
+
+    <TextView
+        android:id="@+id/disk_read_program_text_end"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ms"
+        app:layout_constraintBottom_toBottomOf="@id/disk_read_program_result"
+        app:layout_constraintStart_toEndOf="@id/disk_read_program_delay"
+        app:layout_constraintTop_toTopOf="@id/disk_read_program_result" />
+
+    <ProgressBar
+        android:id="@+id/disk_read_busy"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        app:layout_constraintBottom_toBottomOf="@id/disk_read_program_result"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/disk_read_program_result" />
+
+    <!-- disk WRITE -->
+
+    <Spinner
+        android:id="@+id/disk_write_program_result"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toEndOf="@id/disk_write_program_text_start"
+        app:layout_constraintTop_toBottomOf="@id/disk_read_program_text_start" />
+
+    <TextView
+        android:id="@+id/disk_write_program_text_start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="DISK write will"
+        app:layout_constraintBottom_toBottomOf="@id/disk_write_program_result"
+        app:layout_constraintStart_toEndOf="@id/disk_write_busy"
+        app:layout_constraintTop_toTopOf="@id/disk_write_program_result" />
+
+    <TextView
+        android:id="@+id/disk_write_program_text_middle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="in"
+        app:layout_constraintBottom_toBottomOf="@id/disk_write_program_result"
+        app:layout_constraintStart_toEndOf="@id/disk_write_program_result"
+        app:layout_constraintTop_toTopOf="@id/disk_write_program_result" />
+
+    <EditText
+        android:id="@+id/disk_write_program_delay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="number"
+        android:minWidth="80dp"
+        app:layout_constraintBottom_toBottomOf="@id/disk_write_program_result"
+        app:layout_constraintStart_toEndOf="@id/disk_write_program_text_middle"
+        app:layout_constraintTop_toTopOf="@id/disk_write_program_result" />
+
+    <TextView
+        android:id="@+id/disk_write_program_text_end"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ms"
+        app:layout_constraintBottom_toBottomOf="@id/disk_write_program_result"
+        app:layout_constraintStart_toEndOf="@id/disk_write_program_delay"
+        app:layout_constraintTop_toTopOf="@id/disk_write_program_result" />
+
+    <ProgressBar
+        android:id="@+id/disk_write_busy"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        app:layout_constraintBottom_toBottomOf="@id/disk_write_program_result"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/disk_write_program_result" />
+
+
+    <!-- DISK contents -->
+
+    <TextView
+        android:id="@+id/disk_contents"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
         android:text="DISK contents: "
-        app:layout_constraintEnd_toStartOf="@id/button_clear_disk"
+        app:layout_constraintEnd_toStartOf="@id/disk_contents_clear"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/status_ram" />
+        app:layout_constraintTop_toBottomOf="@id/disk_write_program_result" />
 
     <Button
-        android:id="@+id/button_clear_disk"
+        android:id="@+id/disk_contents_clear"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Clear"
-        app:layout_constraintBottom_toBottomOf="@id/status_disk"
-        app:layout_constraintEnd_toStartOf="@id/progress_disk"
-        app:layout_constraintStart_toEndOf="@id/status_disk"
-        app:layout_constraintTop_toTopOf="@id/status_disk" />
-
-    <ProgressBar
-        android:id="@+id/progress_disk"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        app:layout_constraintBottom_toBottomOf="@id/status_disk"
+        app:layout_constraintBottom_toBottomOf="@id/disk_contents"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@id/status_disk" />
+        app:layout_constraintStart_toEndOf="@id/disk_contents"
+        app:layout_constraintTop_toTopOf="@id/disk_contents" />
 
-    <TextView
-        android:id="@+id/status_now"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="NOW: "
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/status_disk" />
-
+    <!-- GET DATA -->
 
     <ProgressBar
-        android:id="@+id/progress_data"
+        android:id="@+id/get_data_progress"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
         android:visibility="invisible"
-        app:layout_constraintBottom_toBottomOf="@id/button_get_data"
-        app:layout_constraintStart_toEndOf="@id/button_get_data"
-        app:layout_constraintTop_toTopOf="@id/button_get_data" />
+        app:layout_constraintBottom_toBottomOf="@id/get_data_button"
+        app:layout_constraintStart_toEndOf="@id/get_data_button"
+        app:layout_constraintTop_toTopOf="@id/get_data_button" />
 
     <Button
-        android:id="@+id/button_get_data"
+        android:id="@+id/get_data_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Get data"
-        app:layout_constraintBottom_toTopOf="@+id/main_status"
+        app:layout_constraintBottom_toTopOf="@+id/get_data_result"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@id/status_now"
+        app:layout_constraintTop_toTopOf="@id/disk_contents"
         app:layout_constraintVertical_chainStyle="packed" />
 
     <TextView
-        android:id="@+id/main_status"
+        android:id="@+id/get_data_result"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="No data yet"
@@ -156,7 +364,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/button_get_data" />
+        app:layout_constraintTop_toBottomOf="@+id/get_data_button" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

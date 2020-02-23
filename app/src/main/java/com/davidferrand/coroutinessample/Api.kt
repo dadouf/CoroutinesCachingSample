@@ -3,31 +3,11 @@ package com.davidferrand.coroutinessample
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
-import kotlin.properties.Delegates
 
-class Api(val statusLogger: StatusLogger) : DescribableResource {
+class Api {
+    val fetchAction = Action("api.fetch")
 
     private var latestId = 0
-
-    var nextResponse: ProgrammableResponse = ProgrammableResponse.SUCCEED
-    var nextResponseDelay: Long = 10_000L
-
-    private var activeJobCount by Delegates.observable(0) { _, _, _ -> describeStatus() }
-
-    override suspend fun initStatus() = describeStatus()
-    override fun describeStatus() {
-        statusLogger.log(
-            StatusLogger.Status.ApiStatus(
-                isActive = activeJobCount > 0,
-                nextResponse = nextResponse,
-                nextResponseDelay = nextResponseDelay
-            )
-        )
-    }
-
-    enum class ProgrammableResponse {
-        SUCCEED, FAIL
-    }
 
     suspend fun fetch(): Data {
         // TODO reuse inflight
@@ -40,15 +20,15 @@ class Api(val statusLogger: StatusLogger) : DescribableResource {
         return withContext(Dispatchers.IO) {
             // TODO apparently no need to use withContext() when using Retrofit
 
-            val processingResponse = nextResponse
-            val processingResponseDelay = nextResponseDelay
+            val processingResponse = fetchAction.nextResult
+            val processingResponseDelay = fetchAction.delayMs
 
-            activeJobCount++
+            fetchAction.activityCount++
             try {
                 log("long api.fetch() operation: will $processingResponse in ${processingResponseDelay}ms") {
-                    Thread.sleep(processingResponseDelay)
+                    processingResponseDelay?.let { Thread.sleep(it) }
 
-                    if (processingResponse == ProgrammableResponse.SUCCEED) {
+                    if (processingResponse == ProgrammableAction.NextResult.SUCCEED) {
                         Data(
                             id = ++latestId,
                             expiresAtMs = System.currentTimeMillis() + 60_000
@@ -59,7 +39,7 @@ class Api(val statusLogger: StatusLogger) : DescribableResource {
                     }
                 }
             } finally {
-                activeJobCount--
+                fetchAction.activityCount--
             }
         }
     }

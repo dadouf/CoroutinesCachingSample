@@ -5,8 +5,7 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.*
@@ -15,49 +14,33 @@ import java.util.*
 /**
  * Resources used to achieve this:
  * - https://medium.com/androiddevelopers/coroutines-on-android-part-i-getting-the-background-3e0e54d20bb
- * -
  */
 @SuppressLint("SetTextI18n")
 class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
-    // TODO timeout
     // TODO introduce Retrofit
     // TODO fix error with network timeout
 
     private val dao by lazy { AppDatabase.getInstance(this).dataDao() }
-    private val statusLogger by lazy {
-        StatusLogger { status ->
-            launch {
-                when (status) {
-                    is StatusLogger.Status.ApiStatus -> {
-                        progress_api.visibility =
-                            if (status.isActive) View.VISIBLE else View.INVISIBLE
-                        api_status_success.setSelection(
-                            Api.ProgrammableResponse.values().indexOf(
-                                status.nextResponse
-                            )
-                        )
-                        api_status_delay.setText(status.nextResponseDelay.toString())
-                    }
-                    is StatusLogger.Status.RamStatus -> {
-                        status_ram.text = "RAM contents: ${status.description}"
-                        progress_ram.visibility =
-                            if (status.isActive) View.VISIBLE else View.INVISIBLE
-                    }
-                    is StatusLogger.Status.DiskStatus -> {
-                        status_disk.text = "DISK contents: ${status.description}"
-                        progress_disk.visibility =
-                            if (status.isActive) View.VISIBLE else View.INVISIBLE
-                    }
-                }
-            }
+
+    private val ram: Cache by lazy {
+        RamCache().apply {
+            readAction.onActivityChange = { launch { updateRamStatus() } }
+            writeAction.onActivityChange = { launch { updateRamStatus() } }
         }
     }
 
-    private val ram: Cache by lazy { RamCache(statusLogger) }
-    private val disk: Cache by lazy { DiskCache(dao, statusLogger) }
-    private val api by lazy { Api(statusLogger) }
+    private val disk: Cache by lazy {
+        DiskCache(dao).apply {
+            readAction.onActivityChange = { launch { updateDiskStatus() } }
+            writeAction.onActivityChange = { launch { updateDiskStatus() } }
+        }
+    }
 
-    private val agent by lazy { Agent(ram, disk, api) }
+    private val api by lazy {
+        Api().apply { fetchAction.onActivityChange = { launch { updateApiStatus() } } }
+    }
+
+    private val agent by lazy { Agent(CompoundCache(ram = ram, disk = disk), api) }
 
     private var runningGetDataJob: Job? = null
 
@@ -66,7 +49,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
         setContentView(R.layout.activity_main)
 
-        button_get_data.setOnClickListener {
+        get_data_button.setOnClickListener {
             // If there is a running getData() job, a click just cancels it
             runningGetDataJob?.let {
                 log("Click to cancel")
@@ -79,8 +62,8 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
             try {
                 runningGetDataJob = launch {
-                    progress_data.visibility = View.VISIBLE
-                    button_get_data.text = "Cancel"
+                    get_data_progress.visibility = View.VISIBLE
+                    get_data_button.text = "Cancel"
 
                     // TODO button to cancel load
                     //  --> expectation it cancels the load to display but not the underlying network call (never the underlying network call!)
@@ -89,7 +72,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                         val result = log("agent.getData()") { agent.getData() }
                         val duration = System.currentTimeMillis() - startMs
 
-                        main_status.text = "${Date().formatAsTime()}: " + if (result != null) {
+                        get_data_result.text = "${Date().formatAsTime()}: " + if (result != null) {
                             val (data, source) = result
                             "Got data from $source after ${duration}ms: $data"
 
@@ -98,7 +81,8 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                         }.also { log(it) }
 
                     } catch (t: Throwable) {
-                        main_status.text =
+                        log("")
+                        get_data_result.text =
                             "${Date().formatAsTime()}: Error trying to get data: $t".also {
                                 log(
                                     it,
@@ -110,8 +94,8 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
                     } finally {
                         runningGetDataJob = null
-                        progress_data.visibility = View.INVISIBLE
-                        button_get_data.text = "Get data"
+                        get_data_progress.visibility = View.INVISIBLE
+                        get_data_button.text = "Get data"
                     }
                 }
             } catch (t: Throwable) {
@@ -120,37 +104,27 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             }
         }
 
-        api_status_success.adapter = ArrayAdapter(
-            this, R.layout.support_simple_spinner_dropdown_item,
-            Api.ProgrammableResponse.values()
+        setupProgrammableAction(api.fetchAction, api_program_result, api_program_delay)
+        setupProgrammableAction(ram.readAction, ram_read_program_result, ram_read_program_delay)
+        setupProgrammableAction(ram.writeAction, ram_write_program_result, ram_write_program_delay)
+        setupProgrammableAction(disk.readAction, disk_read_program_result, disk_read_program_delay)
+        setupProgrammableAction(
+            disk.writeAction, disk_write_program_result, disk_write_program_delay
         )
-        api_status_success.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onNothingSelected(p0: AdapterView<*>?) {
-            }
 
-            override fun onItemSelected(p0: AdapterView<*>?, p1: View?, p2: Int, p3: Long) {
-                api.nextResponse =
-                    api_status_success.getItemAtPosition(p2) as Api.ProgrammableResponse
-            }
-        }
+        ram_contents_clear.setOnClickListener { launch { ram.clear() } }
+        disk_contents_clear.setOnClickListener { launch { disk.clear() } }
 
-        api_status_delay.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(p0: Editable) {
-                try {
-                    api.nextResponseDelay = p0.toString().toLong()
-                } catch (ignored: NumberFormatException) {
-                }
-            }
+        // Initial values, set via the view (after listeners are set)
+        ram_read_program_delay.setText("0")
+        ram_write_program_delay.setText("0")
+        disk_read_program_delay.setText("500")
+        disk_write_program_delay.setText("2000")
+        api_program_delay.setText("10000")
 
-            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-            }
-
-            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-            }
-        })
-
-        button_clear_ram.setOnClickListener { launch { ram.clear() } }
-        button_clear_disk.setOnClickListener { launch { disk.clear() } }
+        // "Wake up" disk cache so that it describes its contents
+        // (this is only needed for debug info)
+        launch { disk.read() }
     }
 
     override fun onStart() {
@@ -159,14 +133,14 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         launch {
             while (true) {
                 delay(1_000)
-                status_now.text =
+                clock.text =
                     "NOW: ${Date().formatAsTime()}".also { log(it) }
             }
         }
 
-        launch { ram.initStatus() }
-        launch { api.initStatus() }
-        launch { disk.initStatus() }
+        updateRamStatus()
+        updateDiskStatus()
+        updateApiStatus()
     }
 
     override fun onStop() {
@@ -177,6 +151,62 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
     override fun onDestroy() {
         cancel()
         super.onDestroy()
+    }
+
+    private fun setupProgrammableAction(
+        action: ProgrammableAction,
+        resultSpinner: Spinner,
+        delayEditText: EditText
+    ) {
+        resultSpinner.adapter = ArrayAdapter(
+            this, R.layout.support_simple_spinner_dropdown_item,
+            ProgrammableAction.NextResult.values()
+        )
+        resultSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(p0: AdapterView<*>?) {
+            }
+
+            override fun onItemSelected(p0: AdapterView<*>?, p1: View?, p2: Int, p3: Long) {
+                val nextResult =
+                    resultSpinner.getItemAtPosition(p2) as ProgrammableAction.NextResult
+                action.nextResult = nextResult
+            }
+        }
+
+        delayEditText.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(p0: Editable) {
+                try {
+                    action.delayMs = p0.toString().toLong()
+                } catch (ignored: NumberFormatException) {
+                }
+            }
+
+            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+            }
+
+            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+            }
+        })
+    }
+
+    private fun updateRamStatus() {
+        ram_contents.text = "RAM contents: ${ram.describeContents()}"
+        updateBusyIndicator(ram_read_busy, ram.readAction.isBusy)
+        updateBusyIndicator(ram_write_busy, ram.writeAction.isBusy)
+    }
+
+    private fun updateDiskStatus() {
+        disk_contents.text = "RAM contents: ${disk.describeContents()}"
+        updateBusyIndicator(disk_read_busy, disk.readAction.isBusy)
+        updateBusyIndicator(disk_write_busy, disk.writeAction.isBusy)
+    }
+
+    private fun updateApiStatus() {
+        updateBusyIndicator(api_busy, api.fetchAction.isBusy)
+    }
+
+    private fun updateBusyIndicator(progressBar: ProgressBar, isBusy: Boolean) {
+        progressBar.visibility = if (isBusy) View.VISIBLE else View.INVISIBLE
     }
 }
 
