@@ -8,49 +8,66 @@ class Agent(
 ) {
     // These two scopes are introduced for operation that should NOT be cancelled
     // by the user leaving the screen/app
-    private val apiReadScope =
-        CoroutineScope(Dispatchers.Default) // TODO maybe I need exception handlers
-    private val cachesWriteScope = CoroutineScope(Dispatchers.Default)
+    // TODO maybe I need exception handlers
+    private val apiReadScope = CoroutineScope(Dispatchers.Default)
+    private val cacheWriteScope = CoroutineScope(Dispatchers.Default)
 
     /**
      * @return the best available data and its source
      */
     suspend fun getData(): Pair<Data, String>? = coroutineScope {
         // TODO <-- do i need the coroutineScope? why?
-        val localData = local.read()
 
-        if (localData != null && localData.isFresh()) {
-            log("ramData is fresh, using it")
-            return@coroutineScope localData to "LOCAL"
+        try {
+            val localData = local.read()
+
+            if (localData != null && localData.isFresh()) {
+                log("ramData is fresh, using it")
+                return@coroutineScope localData to "LOCAL"
+            }
+        } catch (t: Throwable) {
+            log("Error thrown by local.read()", t)
+            throw t
         }
 
         try {
             // Launch the job in a separate scope so that it doesn't get cancelled
             // on timeout. TODO test it
             val fetchJob = apiReadScope.async {
-                remote.fetch()
+                try {
+                    remote.fetch()
+                } catch (t: Throwable) {
+                    log("Error thrown by remote.fetch() in apiReadScope")
+                    throw t
+                }
                 // TODO introduce retrofit
                 // TODO represent the parsing as a long operation on non-IO dispatcher
             }
 
-            cachesWriteScope.launch {
+            cacheWriteScope.launch {
                 try {
                     val networkDataForCaching = fetchJob.await()
-                    launch { local.write(networkDataForCaching) }
+                    local.write(networkDataForCaching)
                 } catch (t: Throwable) {
-                    log("Error with fetchJob - side effect", t)
-
-                    // Catch exception otherwise the app crashes (unhandled)
+                    log("Error thrown when trying to save network result in cachesWriteScope", t)
                     throw t
                 }
             }
 
-            return@coroutineScope withTimeout(5_000) { fetchJob.await() } to "API"
+            return@coroutineScope withTimeout(5_000) {
+                try {
+                    fetchJob.await()
+                } catch (t: Throwable) {
+                    log("Error thrown by fetchJob.await() in timeout scope", t)
+                    throw t
+                }
+            } to "API"
 
             // FIXME network error with delay set to 3_000 crashes the app!
             // FIXME appears fixed - but can't recover after a network error
 
         } catch (t: Throwable) {
+            log("Error thrown by remote.fetch() or some resulting code", t)
             throw t
 //            log("Error with fetchJob - main branch", t)
 //

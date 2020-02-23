@@ -46,22 +46,40 @@ class CompoundCache(
     val disk: Cache
 ) : Cache("localCache") {
 
-    private val cachesWriteScope = CoroutineScope(Dispatchers.Default)
+    private val cacheWriteScope = CoroutineScope(Dispatchers.Default)
 
     override suspend fun actuallyRead(): Data? {
-        val ramData = ram.read()
+        // TODO do I need the coroutineScope here? why/not?
+        try {
+            val ramData = ram.read()
 
-        if (ramData != null && ramData.isFresh()) {
-            log("ramData is fresh, using it")
-            return ramData
+            if (ramData != null && ramData.isFresh()) {
+                log("ramData is fresh, using it")
+                return ramData
+            }
+        } catch (t: Throwable) {
+            log("Error thrown by ram.read()", t)
+            throw t
         }
 
-        val diskData = disk.read()
-        if (diskData != null && diskData.isFresh()) {
-            log("diskData is fresh, using it")
-            cachesWriteScope.launch { ram.write(diskData) }
+        try {
+            val diskData = disk.read()
+            if (diskData != null && diskData.isFresh()) {
+                log("diskData is fresh, using it")
+                cacheWriteScope.launch {
+                    try {
+                        ram.write(diskData)
+                    } catch (t: Throwable) {
+                        log("Error thrown by ram.write() in cacheWriteScope", t)
+                        throw t
+                    }
+                }
 
-            return diskData
+                return diskData
+            }
+        } catch (t: Throwable) {
+            log("Error thrown by disk.read() or the side effect", t)
+            throw t
         }
 
         return null

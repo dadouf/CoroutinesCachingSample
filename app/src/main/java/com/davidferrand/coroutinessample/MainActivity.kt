@@ -51,7 +51,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         setContentView(R.layout.activity_main)
 
         get_data_button.setOnClickListener {
-            // If there is a running getData() job, a click just cancels it
+            // If there is a running getData() job, a click just cancels it and returns
             runningGetDataJob?.let {
                 log("Click to cancel")
                 it.cancel()
@@ -70,7 +70,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                     //  --> expectation it cancels the load to display but not the underlying network call (never the underlying network call!)
 
                     try {
-                        val result = log("agent.getData()") { agent.getData() }
+                        val result = agent.getData()
                         val duration = System.currentTimeMillis() - startMs
 
                         get_data_result.text = "${Date().formatAsTime()}: " + if (result != null) {
@@ -82,14 +82,11 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                         }.also { log(it) }
 
                     } catch (t: Throwable) {
-                        log("")
+                        log("Error thrown by agent.getData()", t)
+
                         get_data_result.text =
-                            "${Date().formatAsTime()}: Error trying to get data: $t".also {
-                                log(
-                                    it,
-                                    t
-                                )
-                            }
+                            "${Date().formatAsTime()}: Error trying to get data: $t"
+                                .also { log(it, t) }
 
                         throw t
 
@@ -100,7 +97,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
                     }
                 }
             } catch (t: Throwable) {
-                log("thrown by launch{}")
+                log("Error thrown by top-level runningGetDataJob", t)
                 throw t
             }
         }
