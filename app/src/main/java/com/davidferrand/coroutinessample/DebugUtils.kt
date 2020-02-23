@@ -10,9 +10,9 @@ fun log(s: String, t: Throwable? = null) {
     val msg = "[Thread:${Thread.currentThread().name}] $s"
 
     if (t != null) {
-        Log.v(tag, msg, t)
+        Log.d(tag, msg, t)
     } else {
-        Log.v(tag, msg)
+        Log.d(tag, msg)
     }
 }
 
@@ -46,7 +46,8 @@ interface WatchableAction {
         get() = activityCount > 0
 }
 
-class Action(val tag: String = "action") : ProgrammableAction, WatchableAction {
+class Action(val tag: String = "action@${UUID.randomUUID().toString().take(3)}") :
+    ProgrammableAction, WatchableAction {
     override var delayMs: Long? = null
         set(value) {
             field = value

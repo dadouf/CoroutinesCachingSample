@@ -17,44 +17,23 @@ abstract class Cache(
     val readAction = Action("$tag.read")
     val writeAction = Action("$tag.write")
 
-    suspend fun read(): Data? = log("$tag.read() operation") {
-        readAction.activityCount++
-        try {
-            if (readAction.nextResult == ProgrammableAction.NextResult.SUCCEED) {
-                actuallyRead()
-            } else {
-                throw IOException("Read failed")
-            }
-        } finally {
-            readAction.activityCount--
-        }
-    }
+    suspend fun read(): Data? = doWork(readAction) { actuallyRead() }
+    suspend fun write(data: Data) = doWork(writeAction) { actuallyWrite(data) }
+    suspend fun clear() = doWork(writeAction) { actuallyClear() }
 
-    suspend fun write(data: Data) = log("$tag.write() operation") {
-        writeAction.activityCount++
-        try {
-            if (writeAction.nextResult == ProgrammableAction.NextResult.SUCCEED) {
-                actuallyWrite(data)
-            } else {
-                throw IOException("Write failed")
+    private suspend fun <T> doWork(action: Action, actualWork: suspend () -> T): T =
+        log("${action.tag} operation") {
+            action.activityCount++
+            try {
+                if (action.nextResult == ProgrammableAction.NextResult.SUCCEED) {
+                    actualWork.invoke()
+                } else {
+                    throw IOException("${action.tag} failed")
+                }
+            } finally {
+                action.activityCount--
             }
-        } finally {
-            writeAction.activityCount--
         }
-    }
-
-    suspend fun clear() = log("$tag.clear() operation") {
-        writeAction.activityCount++
-        try {
-            if (writeAction.nextResult == ProgrammableAction.NextResult.SUCCEED) {
-                actuallyClear()
-            } else {
-                throw IOException("Clear failed")
-            }
-        } finally {
-            writeAction.activityCount--
-        }
-    }
 
     protected abstract suspend fun actuallyRead(): Data?
     protected abstract suspend fun actuallyWrite(data: Data)

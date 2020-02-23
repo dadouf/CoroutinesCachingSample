@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -133,8 +134,10 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         launch {
             while (true) {
                 delay(1_000)
-                clock.text =
-                    "NOW: ${Date().formatAsTime()}".also { log(it) }
+                val time = Date().formatAsTime()
+
+                clock.text = "NOW: $time"
+                Log.v("NOW", time)
             }
         }
 
