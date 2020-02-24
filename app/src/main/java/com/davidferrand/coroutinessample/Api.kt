@@ -1,6 +1,8 @@
 package com.davidferrand.coroutinessample
 
 import com.google.gson.GsonBuilder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -28,6 +30,8 @@ class Api {
                     if (fetchAction.nextResult == ProgrammableAction.NextResult.SUCCEED) {
                         chain.proceed(chain.request())
                     } else {
+                        // Even after throwing an exception here, OkHttp will retry the call in
+                        // some conditions, see [OkHttpClient.Builder.retryOnConnectionFailure]
                         throw IOException("Network error")
                     }
                 }
@@ -46,17 +50,29 @@ class Api {
         // TODO but also represent that there might be calls with various urls/bodies.
         //   we want to share the exact ones, or do we...?
 
-        fetchAction.activityCount++
-        try {
-            val randomId = (1..100).random()
+        return logSuspending("${fetchAction.tag} operation") {
+            fetchAction.activityCount++
+            try {
+                val randomId = (1..100).random()
 
-            val model = service.getPost(randomId)
-            return Data(
+                val model = service.getPost(randomId)
+                mapModel(model)
+            } finally {
+                fetchAction.activityCount--
+            }
+        }
+    }
+
+    private suspend fun mapModel(model: DataModel): Data = withContext(Dispatchers.Default) {
+        // Artificially block for 1s to simulate a heavy mapping operation. withContext() ensures
+        // this runs in the background REGARDLESS of where the caller calls this from.
+
+        logBlocking("long mapModel operation") {
+            Thread.sleep(3_000)
+            Data(
                 id = model.id,
                 expiresAtMs = System.currentTimeMillis() + 60_000
             )
-        } finally {
-            fetchAction.activityCount--
         }
     }
 }

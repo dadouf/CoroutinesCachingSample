@@ -6,10 +6,10 @@ class Agent(
     private val local: Cache,
     private val remote: Api
 ) {
-    // These two scopes are introduced for operations that should NOT be cancelled
-    // by the user leaving the screen/app
-    private val apiReadScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-    private val cacheWriteScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    // These two scopes are introduced for operations that should NOT be cancelled when getData()
+    // is cancelled (by the user leaving the screen/app)
+    private val apiReadScope = CoroutineScope(SupervisorJob())
+    private val cacheWriteScope = CoroutineScope(SupervisorJob())
 
     private val getDataTimeoutMs: Long = 5_000
 
@@ -34,7 +34,7 @@ class Agent(
 
         try {
             // Launch the job in a separate scope so that it doesn't get cancelled on timeout
-            val fetchJob = apiReadScope.async { log("remote.fetch operation") { remote.fetch() } }
+            val fetchJob = apiReadScope.async { remote.fetch() }
 
             cacheWriteScope.launch {
                 try {

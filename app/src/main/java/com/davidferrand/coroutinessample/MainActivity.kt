@@ -36,6 +36,9 @@ import java.util.*
  *   when the whole chain is made of suspending functions (e.g. using Room/Retrofit).
  *   In case a function contains a blocking heavy work, it is responsible for using the dispatcher
  *   it needs via withContext{}; and callers of the (now suspending) function don't need to care!
+ * - Even in the "worst case" where API fetch operation is done on Dispatchers.Main, we ensure that
+ *   it does NOT block the UI thread by doing two things: (1) rely on Retrofit to do the right thing
+ *   and (2) wrap our long Api.mapModel operation in withContext(Dispatchers.Default)
  *
  * DISCOVERIES: re other things
  * - OkHttp: the default timeout for connect/read/write is 10s. If any of these operations takes
@@ -146,10 +149,25 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         super.onStart()
 
         startClock()
+        startActiveIndicator()
 
         updateRamStatus()
         updateDiskStatus()
         updateApiStatus()
+    }
+
+    /** Animate an indicator that flashes to show that the UI thread is not blocked */
+    private fun startActiveIndicator() {
+        val frequencyMs = 250L
+
+        launch {
+            while (true) {
+                active_indicator.visibility = View.VISIBLE
+                delay(frequencyMs / 2)
+                active_indicator.visibility = View.INVISIBLE
+                delay(frequencyMs / 2)
+            }
+        }
     }
 
     private fun startClock() {

@@ -2,7 +2,10 @@ package com.davidferrand.coroutinessample
 
 import android.content.Context
 import androidx.room.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.IOException
 
 abstract class Cache(private val tag: String) : DescribableContents {
@@ -19,7 +22,7 @@ abstract class Cache(private val tag: String) : DescribableContents {
      * implement read, write and clear
      */
     private suspend fun <T> doWork(action: Action, actualWork: suspend () -> T): T =
-        log("${action.tag} operation") {
+        logSuspending("${action.tag} operation") {
             action.activityCount++
             try {
                 if (action.nextResult == ProgrammableAction.NextResult.SUCCEED) {
@@ -43,7 +46,7 @@ class CompoundCache(
     val disk: Cache
 ) : Cache("localCache") {
 
-    private val cacheWriteScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val cacheWriteScope = CoroutineScope(SupervisorJob())
 
     override suspend fun actuallyRead(): Data? {
         val ramData: Data? = ram.readSafely()

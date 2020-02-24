@@ -16,7 +16,17 @@ fun log(s: String, t: Throwable? = null) {
     }
 }
 
-suspend fun <T> log(s: String, block: suspend () -> T): T {
+suspend fun <T> logSuspending(s: String, block: suspend () -> T): T {
+    log("$s: START")
+    val startMs = System.currentTimeMillis()
+    try {
+        return block()
+    } finally {
+        log("$s: FINISHED in ${System.currentTimeMillis() - startMs}ms")
+    }
+}
+
+fun <T> logBlocking(s: String, block: () -> T): T {
     log("$s: START")
     val startMs = System.currentTimeMillis()
     try {
