@@ -28,11 +28,14 @@ import java.util.*
  * - SupervisorJob is CRUCIAL for scopes that get reused. Without that, any error in the scope
  *   (even more prominent in async{} where we don't usually try/catch) cancels the whole scope for
  *   any future job.
- *
- * TODO to discover
- *   - I'm still not sure what coroutineScope{} is about
- *   - I'm still not sure about the proper syntax to ensure that some given work is done on a specific
- *     context/dispatcher
+ * - coroutineScope{} ensures that cancellation or failure of any child coroutine within the block
+ *   causes cancellation of all other children in the block (explanation from [CoroutineScope]).
+ *   That consequently DOES NOT apply to coroutines launched within coroutineScope{} but on a
+ *   SEPARATE scope. So in short: coroutineScope{} is good practice.
+ * - Which dispatcher should I use when launching heavy-work coroutines? In short: it does NOT matter
+ *   when the whole chain is made of suspending functions (e.g. using Room/Retrofit).
+ *   In case a function contains a blocking heavy work, it is responsible for using the dispatcher
+ *   it needs via withContext{}; and callers of the (now suspending) function don't need to care!
  */
 @SuppressLint("SetTextI18n")
 class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {

@@ -17,8 +17,6 @@ class Agent(
      * @return the best available data and its source
      */
     suspend fun getData(): Pair<Data, String>? {
-        // TODO <-- do i need the coroutineScope? why?
-
         val requestStartMs = System.currentTimeMillis()
 
         val localData: Data? =

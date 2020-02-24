@@ -46,7 +46,6 @@ class CompoundCache(
     private val cacheWriteScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     override suspend fun actuallyRead(): Data? {
-        // TODO do I need the coroutineScope here? why/not?
         val ramData: Data? = ram.readSafely()
 
         if (ramData != null) {
