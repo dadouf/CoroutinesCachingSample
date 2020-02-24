@@ -48,6 +48,11 @@ import java.util.*
  * - OkHttp: the default timeout for connect/read/write is 10s. If any of these operations takes
  *   more than 10s, the whole call fails. It's possible to set a callTimeout for the total
  *   but by default it's 0: i.e. it's not enforced and the timeout of individual operations are used.
+ *
+ * TODO still need to understand error handling better (and beware of cancellation exception)
+ *      see https://proandroiddev.com/rxjava-to-coroutines-on-android-by-example-3736f4ecc1c8
+ *          https://proandroiddev.com/kotlin-coroutine-job-hierarchy-finish-cancel-and-fail-2d3d42a768a9
+ *          https://kotlinlang.org/docs/reference/coroutines/exception-handling.html
  */
 @SuppressLint("SetTextI18n")
 class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
