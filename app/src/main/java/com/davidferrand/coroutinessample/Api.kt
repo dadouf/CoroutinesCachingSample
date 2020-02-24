@@ -15,10 +15,6 @@ import java.util.concurrent.TimeUnit
 class Api {
     val fetchAction = Action("api.fetch")
 
-    // In this implementation, we use ONE controllerRunner for all requests.
-    // A real implementation may decide to use one per requested ID, for instance.
-    private val controlledRunner = ControlledRunner<Data>()
-
     private val service: ApiService by lazy {
         Retrofit.Builder()
             .baseUrl(apiBaseUrl)
@@ -47,24 +43,15 @@ class Api {
             .build().create(ApiService::class.java)
     }
 
-    suspend fun fetch(): Data {
-        // Use [controlledRunner.joinPreviousOrRun] to reuse in-flight requests
-        // IMPORTANT NOTE: this only reuses the network request; if fetch() is called 4 times
-        // concurrently, we will make only one network request (yay) BUT whatever follows fetch()
-        // will execute 4 times if the caller doesn't do any other synchronization.
+    suspend fun fetch(): Data = logSuspending("${fetchAction.tag} operation") {
+        fetchAction.activityCount++
+        try {
+            val randomId = (1..100).random()
 
-        return controlledRunner.joinPreviousOrRun {
-            return@joinPreviousOrRun logSuspending("${fetchAction.tag} operation") {
-                fetchAction.activityCount++
-                try {
-                    val randomId = (1..100).random()
-
-                    val model = service.getPost(randomId)
-                    mapModel(model)
-                } finally {
-                    fetchAction.activityCount--
-                }
-            }
+            val model = service.getPost(randomId)
+            mapModel(model)
+        } finally {
+            fetchAction.activityCount--
         }
     }
 
