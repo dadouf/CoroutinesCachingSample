@@ -39,6 +39,10 @@ import java.util.*
  * - Even in the "worst case" where API fetch operation is done on Dispatchers.Main, we ensure that
  *   it does NOT block the UI thread by doing two things: (1) rely on Retrofit to do the right thing
  *   and (2) wrap our long Api.mapModel operation in withContext(Dispatchers.Default)
+ * - ConcurrencyHelpers.kt contains two things that are not part of the language but very useful
+ *   and common functionality: [ControlledRunner.joinPreviousOrRun] and [ControlledRunner.cancelPreviousThenRun]
+ * - [ControlledRunner.joinPreviousOrRun] can be tricky because it changes the error propagation
+ *   flow
  *
  * DISCOVERIES: re other things
  * - OkHttp: the default timeout for connect/read/write is 10s. If any of these operations takes

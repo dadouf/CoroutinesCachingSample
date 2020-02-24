@@ -6,12 +6,16 @@ class Agent(
     private val local: Cache,
     private val remote: Api
 ) {
-    // These two scopes are introduced for operations that should NOT be cancelled when getData()
-    // is cancelled (by the user leaving the screen/app)
+    /*
+     * These scopes are introduced because the remote.fetch operation (and subsequent cache write)
+     * should NOT be cancelled when getData() is cancelled (by the user leaving the screen/app)
+     */
     private val apiReadScope = CoroutineScope(SupervisorJob())
     private val cacheWriteScope = CoroutineScope(SupervisorJob())
 
     private val getDataTimeoutMs: Long = 5_000
+
+    private val controlledRunnerForFetchData = ControlledRunner<Data>()
 
     /**
      * @return the best available data and its source
@@ -33,24 +37,38 @@ class Agent(
         }
 
         try {
-            // Launch the job in a separate scope so that it doesn't get cancelled on timeout
-            val fetchJob = apiReadScope.async { remote.fetch() }
+            // Launch the fetch job in a separate scope so that it doesn't get cancelled on timeout.
+            // Any error within the async{} block:
+            //   (1) is thrown when await() is called, so we are catching it there
+            //   (2) does NOT render the whole scope invalid thanks to SupervisorJob(): we can use it later
+            val survivingFetchJob = apiReadScope.async {
 
-            cacheWriteScope.launch {
-                try {
-                    local.write(fetchJob.await())
-                } catch (t: Throwable) {
-                    log(
-                        "Error thrown by fetchJob.await() in cachesWriteScope. CAUGHT, will ignore.",
-                        t
-                    )
+                // Use a controlledRunner to allow only one fetch+writeData at a time:
+                // We want to reuse in-flight network requests BUT ALSO write the caches once
+                // for a single actual network request.
+                controlledRunnerForFetchData.joinPreviousOrRun {
+                    val apiResult = remote.fetch()
+
+                    // Launch the cache write job in a separate scope so we can continue with the main flow immediately
+                    cacheWriteScope.launch {
+                        try {
+                            local.write(apiResult)
+                        } catch (t: Throwable) {
+                            log(
+                                "Error thrown by fetchJob.await() in cacheWriteScope. CAUGHT, will ignore.",
+                                t
+                            )
+                        }
+                    }
+
+                    apiResult
                 }
             }
 
             // getDataTimeoutMs is TOTAL: if it's set to 5s and I've waited 2s for disk data
             // already, only allow the remaining 3s for the network.
             val elapsedSinceRequestStartMs = System.currentTimeMillis() - requestStartMs
-            return withTimeout(getDataTimeoutMs - elapsedSinceRequestStartMs) { fetchJob.await() } to "API"
+            return withTimeout(getDataTimeoutMs - elapsedSinceRequestStartMs) { survivingFetchJob.await() } to "API"
 
         } catch (t: Throwable) {
             log(
@@ -59,13 +77,6 @@ class Agent(
             )
             return localData?.let { it to "LOCAL" }
         }
-    }
-
-    fun refresh() {
-        // TODO implement:
-        // - we don't need to fetch ALL the data from cache, just check its freshness
-        // - if not fresh, then fetch and store in background
-        // A simple (non-optimized) version just does getData() but ignores the result
     }
 }
 

@@ -70,12 +70,12 @@ class CompoundCache(
     }
 
     override suspend fun actuallyWrite(data: Data) {
-        ram.write(data) // Write to RAM synchronously: it's cheap and probably best for consistency
+        ram.write(data) // Write to RAM synchronously: it's cheap and best for cache consistency
         disk.writeAsync(data) // Write to DISK a-synchronously: we don't need to wait for it
     }
 
     override suspend fun actuallyClear() {
-        ram.clear() // Write to RAM synchronously: it's cheap and probably best for consistency
+        ram.clear() // Write to RAM synchronously: it's cheap and best for cache consistency
         disk.clearAsync() // Write to DISK a-synchronously: we don't need to wait for it
     }
 
