@@ -33,18 +33,15 @@ class Agent(
         }
 
         try {
-            // TODO introduce retrofit
-            // TODO represent the parsing as a long operation on non-IO dispatcher (what's good practice?)
-
             // Launch the job in a separate scope so that it doesn't get cancelled on timeout
-            val fetchJob = apiReadScope.async { remote.fetch() }
+            val fetchJob = apiReadScope.async { log("remote.fetch operation") { remote.fetch() } }
 
             cacheWriteScope.launch {
                 try {
                     local.write(fetchJob.await())
                 } catch (t: Throwable) {
                     log(
-                        "Error thrown when trying to save network result in cachesWriteScope. CAUGHT, will ignore.",
+                        "Error thrown by fetchJob.await() in cachesWriteScope. CAUGHT, will ignore.",
                         t
                     )
                 }
@@ -56,7 +53,10 @@ class Agent(
             return withTimeout(getDataTimeoutMs - elapsedSinceRequestStartMs) { fetchJob.await() } to "API"
 
         } catch (t: Throwable) {
-            log("Error thrown by remote.fetch(). CAUGHT, will try to fallback to local data", t)
+            log(
+                "Error thrown by fetchJob.await() in getData(). CAUGHT, will try to fallback to local data",
+                t
+            )
             return localData?.let { it to "LOCAL" }
         }
     }

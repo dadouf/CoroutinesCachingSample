@@ -16,7 +16,7 @@ import java.util.*
  * Resources used to achieve this:
  * - https://medium.com/androiddevelopers/coroutines-on-android-part-i-getting-the-background-3e0e54d20bb
  *
- * Some rules I've discovered
+ * DISCOVERIES: re coroutines
  * - Side-effect work must be launch{}ed in a SEPARATE scope B than the current scope A (fire and
  *   forget on another thread and continue current co-routine in A directly). That way: (1) if A
  *   gets cancelled or errs, B doesn't.
@@ -36,6 +36,11 @@ import java.util.*
  *   when the whole chain is made of suspending functions (e.g. using Room/Retrofit).
  *   In case a function contains a blocking heavy work, it is responsible for using the dispatcher
  *   it needs via withContext{}; and callers of the (now suspending) function don't need to care!
+ *
+ * DISCOVERIES: re other things
+ * - OkHttp: the default timeout for connect/read/write is 10s. If any of these operations takes
+ *   more than 10s, the whole call fails. It's possible to set a callTimeout for the total
+ *   but by default it's 0: i.e. it's not enforced and the timeout of individual operations are used.
  */
 @SuppressLint("SetTextI18n")
 class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
@@ -74,12 +79,12 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         get_data_button.setOnClickListener {
             // If there is a running getData() job, a click just cancels it and returns
             runningGetDataJob?.let {
-                log("Click to cancel")
+                log("Clicked to cancel")
                 it.cancel()
                 return@setOnClickListener
             }
 
-            log("Click to get data")
+            log("Clicked to get data")
             val startMs = System.currentTimeMillis()
 
             runningGetDataJob = launch {

@@ -1,46 +1,75 @@
 package com.davidferrand.coroutinessample
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.google.gson.GsonBuilder
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.GET
+import retrofit2.http.Path
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 class Api {
     val fetchAction = Action("api.fetch")
 
-    private var latestId = 0
+    private val service: ApiService by lazy {
+        Retrofit.Builder()
+            .baseUrl("https://jsonplaceholder.typicode.com/")
+            .addConverterFactory(GsonConverterFactory.create(GsonBuilder().create()))
+            .client(OkHttpClient.Builder()
+                .callTimeout(60, TimeUnit.SECONDS)
+                .connectTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .writeTimeout(60, TimeUnit.SECONDS)
+                .addNetworkInterceptor { chain ->
+                    fetchAction.delayMs?.let { Thread.sleep(it) }
+
+                    if (fetchAction.nextResult == ProgrammableAction.NextResult.SUCCEED) {
+                        chain.proceed(chain.request())
+                    } else {
+                        throw IOException("Network error")
+                    }
+                }
+                .addNetworkInterceptor(
+                    HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY)
+                )
+                .build()
+            )
+            .build().create(ApiService::class.java)
+    }
 
     suspend fun fetch(): Data {
         // TODO reuse inflight
         //  https://medium.com/@appmattus/caching-made-simple-on-android-d6e024e3726b
         //  ConcurrencyHelpers.kt
-
         // TODO but also represent that there might be calls with various urls/bodies.
         //   we want to share the exact ones, or do we...?
 
-        return withContext(Dispatchers.IO) {
-            // TODO apparently no need to use withContext() when using Retrofit
+        fetchAction.activityCount++
+        try {
+            val randomId = (1..100).random()
 
-            val processingResponse = fetchAction.nextResult
-            val processingResponseDelay = fetchAction.delayMs
-
-            fetchAction.activityCount++
-            try {
-                log("long api.fetch() operation: will $processingResponse in ${processingResponseDelay}ms") {
-                    processingResponseDelay?.let { Thread.sleep(it) }
-
-                    if (processingResponse == ProgrammableAction.NextResult.SUCCEED) {
-                        Data(
-                            id = ++latestId,
-                            expiresAtMs = System.currentTimeMillis() + 60_000
-                        )
-
-                    } else {
-                        throw IOException("Network error")
-                    }
-                }
-            } finally {
-                fetchAction.activityCount--
-            }
+            val model = service.getPost(randomId)
+            return Data(
+                id = model.id,
+                expiresAtMs = System.currentTimeMillis() + 60_000
+            )
+        } finally {
+            fetchAction.activityCount--
         }
     }
 }
+
+interface ApiService {
+    @GET("/posts/{id}")
+    suspend fun getPost(@Path(value = "id") id: Int): DataModel
+}
+
+/** See https://jsonplaceholder.typicode.com/posts/1 */
+data class DataModel(
+    val userId: Int,
+    val id: Int,
+    val title: String,
+    val body: String
+)
