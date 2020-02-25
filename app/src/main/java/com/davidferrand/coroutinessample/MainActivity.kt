@@ -43,6 +43,10 @@ import java.util.*
  *   and common functionality: [ControlledRunner.joinPreviousOrRun] and [ControlledRunner.cancelPreviousThenRun]
  * - [ControlledRunner.joinPreviousOrRun] can be tricky because it changes the error propagation
  *   flow
+ * - To unit test coroutines:
+ *   https://github.com/Kotlin/kotlinx.coroutines/tree/master/kotlinx-coroutines-test
+ *   https://github.com/marcinOz/TestCoroutineRule
+ *
  *
  * DISCOVERIES: re other things
  * - OkHttp: the default timeout for connect/read/write is 10s. If any of these operations takes
