@@ -20,7 +20,7 @@ class Agent(
     /**
      * @return the best available data and its source
      */
-    suspend fun getData(): Pair<Data, String>? {
+    suspend fun getData(): Pair<Data, String>? { // TODO notion of Result<>
         val requestStartMs = System.currentTimeMillis()
 
         val localData: Data? =
@@ -71,6 +71,7 @@ class Agent(
             return withTimeout(getDataTimeoutMs - elapsedSinceRequestStartMs) { survivingFetchJob.await() } to "API"
 
         } catch (t: Throwable) {
+            // TODO notion of result and caught exception
             log(
                 "Error thrown by fetchJob.await() in getData(). CAUGHT, will try to fallback to local data",
                 t

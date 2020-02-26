@@ -46,7 +46,8 @@ import java.util.*
  * - To unit test coroutines:
  *   https://github.com/Kotlin/kotlinx.coroutines/tree/master/kotlinx-coroutines-test
  *   https://github.com/marcinOz/TestCoroutineRule
- *
+ * - Error handling can be finicky with coroutines: a catch-all block (for all Throwable) will
+ *   also catch CancellationException: it might or might not be what we want.
  *
  * DISCOVERIES: re other things
  * - OkHttp: the default timeout for connect/read/write is 10s. If any of these operations takes
@@ -57,12 +58,13 @@ import java.util.*
  *      see https://proandroiddev.com/rxjava-to-coroutines-on-android-by-example-3736f4ecc1c8
  *          https://proandroiddev.com/kotlin-coroutine-job-hierarchy-finish-cancel-and-fail-2d3d42a768a9
  *          https://kotlinlang.org/docs/reference/coroutines/exception-handling.html
+ *
+ * TODO Test: when cancellation happens, how is cancellation propagated?
+ *      Two cases: child to parent, parent to child. If cancellation is caught by child/parent,
+ *      how does it affect the other?
  */
 @SuppressLint("SetTextI18n")
 class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
-    // TODO introduce Retrofit
-    // TODO fix error with network timeout
-
     private val dao by lazy { AppDatabase.getInstance(this).dataDao() }
 
     private val ram: Cache by lazy {

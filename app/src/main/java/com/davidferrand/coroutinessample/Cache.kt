@@ -12,7 +12,9 @@ abstract class Cache(private val tag: String) : DescribableContents {
     val readAction = Action("$tag.read")
     val writeAction = Action("$tag.write")
 
-    suspend fun read(): Data? = doWork(readAction) { actuallyRead() }
+    @Throws(NotInCacheException::class)
+    suspend fun read(): Data = doWork(readAction) { actuallyRead() }
+
     suspend fun write(data: Data) = doWork(writeAction) { actuallyWrite(data) }
     suspend fun clear() = doWork(writeAction) { actuallyClear() }
 
@@ -35,7 +37,7 @@ abstract class Cache(private val tag: String) : DescribableContents {
             }
         }
 
-    protected abstract suspend fun actuallyRead(): Data?
+    protected abstract suspend fun actuallyRead(): Data
     protected abstract suspend fun actuallyWrite(data: Data)
     protected abstract suspend fun actuallyClear()
 
@@ -48,7 +50,7 @@ class CompoundCache(
 
     private val cacheWriteScope = CoroutineScope(SupervisorJob())
 
-    override suspend fun actuallyRead(): Data? {
+    override suspend fun actuallyRead(): Data {
         val ramData: Data? = ram.readSafely()
 
         if (ramData != null) {
@@ -66,7 +68,7 @@ class CompoundCache(
             ram.writeAsync(diskData)
         }
 
-        return diskData
+        return diskData ?: throw NotInCacheException()
     }
 
     override suspend fun actuallyWrite(data: Data) {
@@ -123,8 +125,8 @@ class CompoundCache(
 class RamCache : Cache("ramCache") {
     private var cachedData: Data? = null
 
-    override suspend fun actuallyRead(): Data? {
-        return cachedData
+    override suspend fun actuallyRead(): Data {
+        return cachedData ?: throw NotInCacheException()
     }
 
     override suspend fun actuallyWrite(data: Data) {
@@ -144,8 +146,9 @@ class DiskCache(
     /** Keep a lightweight description of the cache contents */
     private var latestDataDescription: String? = null
 
-    override suspend fun actuallyRead(): Data? {
-        return dao.get(readAction.delayMs ?: 0).also { latestDataDescription = it.toString() }
+    override suspend fun actuallyRead(): Data {
+        val data = dao.get(readAction.delayMs ?: 0).also { latestDataDescription = it.toString() }
+        return data ?: throw NotInCacheException()
     }
 
     override suspend fun actuallyWrite(data: Data) {
@@ -207,3 +210,5 @@ abstract class DataDao {
         clearInternal()
     }
 }
+
+class NotInCacheException : Exception()
