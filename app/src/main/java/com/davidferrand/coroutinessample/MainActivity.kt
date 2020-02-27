@@ -48,6 +48,8 @@ import java.util.*
  *   https://github.com/marcinOz/TestCoroutineRule
  * - Error handling can be finicky with coroutines: a catch-all block (for all Throwable) will
  *   also catch CancellationException: it might or might not be what we want.
+ * - Re cancellation and who throws CancellationException and when:
+ *   https://proandroiddev.com/cancelling-kotlin-coroutines-1030f03bf168 (TODO summarize)
  *
  * DISCOVERIES: re other things
  * - OkHttp: the default timeout for connect/read/write is 10s. If any of these operations takes
