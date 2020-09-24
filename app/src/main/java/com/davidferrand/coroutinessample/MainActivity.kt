@@ -157,9 +157,14 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         disk_write_program_delay.setText("2000")
         api_program_delay.setText("10000")
 
-        // "Wake up" disk cache so that it describes its contents
-        // (this is only needed for debug info)
-        launch { disk.read() }
+        // "Wake up" disk cache so that it describes its contents (this is only needed for debug info)
+        launch {
+            try {
+                disk.read()
+            } catch (ignored: NotInCacheException) {
+                // Don't crash on a NotInCacheException: it happens on fresh installs, and it makes sense
+            }
+        }
     }
 
     override fun onStart() {
