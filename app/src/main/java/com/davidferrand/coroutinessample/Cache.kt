@@ -8,7 +8,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.IOException
 
-abstract class Cache(private val tag: String) : DescribableContents {
+abstract class Cache(tag: String) : DescribableContents {
     val readAction = Action("$tag.read")
     val writeAction = Action("$tag.write")
 
